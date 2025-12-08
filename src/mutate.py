@@ -8,9 +8,11 @@ def process(args):
 
 data = np.arange(1_000_000).reshape(10_000, 100)
 data[:, -1] = 0  # Initialize cumsum column
+# data.flags.writeable = False
 expected = data[:, :-1].sum()
 
 with ThreadPoolExecutor(max_workers=8) as executor:
-    executor.map(process, ((data, i) for i in range(len(data))))
+    for f in executor.map(process, ((data, i) for i in range(len(data)))):
+        pass
 
 print(f"Expected: {expected:,}, Found: {data[-1, -1]:,}, Diff: {expected - data[-1, -1]:,}")
