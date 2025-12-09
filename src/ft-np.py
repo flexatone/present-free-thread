@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 import frame_fixtures as ff
 import matplotlib.pyplot as plt
 import numpy as np
-import typing_extensions as tp
+import typing as tp
 
 sys.path.append(os.getcwd())
 
@@ -30,13 +30,19 @@ class FTTest:
         raise NotImplementedError()
 
 
-def proc(s):
-    return s.loc[(s % 2) == 0].sum()
+# def proc(s):
+#     return s.loc[(s % 2) == 0].sum()
+
+def proc(row): # NOTE: as soon as we do selection
+    # return ((row * 0.5)**2).sum()  # this is about equal
+    # return (((row * 0.5) + 100)**2).sum()  # FT starts to outperform
+    return (row[row % 2 == 0]**2).sum()  # FT way outperforns
+
 
 
 class ArrayMap_Single(FTTest):
     def __call__(self):
-        _ = np.fromiter((f(row) for row in self.npa), dtype=float, count=self.npa.shape[0])
+        _ = np.fromiter((proc(row) for row in self.npa), dtype=float, count=self.npa.shape[0])
 
 
 # class ArrayMap_Process_Workers2(FTTest):
@@ -70,24 +76,24 @@ class ArrayMap_Threads_Workers2(FTTest):
     def __call__(self):
 
         with ThreadPoolExecutor(max_workers=2) as ex:
-            _ = np.fromiter(ex.map(f, self.npa), dtype=float, count=self.npa.shape[0])
+            _ = np.fromiter(ex.map(proc, self.npa), dtype=float, count=self.npa.shape[0])
 
 class ArrayMap_Threads_Workers4(FTTest):
     def __call__(self):
 
         with ThreadPoolExecutor(max_workers=4) as ex:
-            _ = np.fromiter(ex.map(f, self.npa), dtype=float, count=self.npa.shape[0])
+            _ = np.fromiter(ex.map(proc, self.npa), dtype=float, count=self.npa.shape[0])
 
 
 class ArrayMap_Threads_Workers8(FTTest):
     def __call__(self):
         with ThreadPoolExecutor(max_workers=8) as ex:
-            _ = np.fromiter(ex.map(f, self.npa), dtype=float, count=self.npa.shape[0])
+            _ = np.fromiter(ex.map(proc, self.npa), dtype=float, count=self.npa.shape[0])
 
 class ArrayMap_Threads_Workers16(FTTest):
     def __call__(self):
         with ThreadPoolExecutor(max_workers=16) as ex:
-            _ = np.fromiter(ex.map(f, self.npa), dtype=float, count=self.npa.shape[0])
+            _ = np.fromiter(ex.map(proc, self.npa), dtype=float, count=self.npa.shape[0])
 
 
 
@@ -96,24 +102,24 @@ class ArrayMap_Threads_Workers16(FTTest):
 
 
 #-------------------------------------------------------------------------------
-NUMBER = 100
+NUMBER = 4
 
 def scale(v):
-    return int(v * .1)
+    return int(v * 10)
 
 
-FF_wide_uniform = f's({scale(100)},{scale(10_000)})|v(bool)'
-FF_wide_mixed   = f's({scale(100)},{scale(10_000)})|v(int)'
-FF_wide_columnar = f's({scale(100)},{scale(10_000)})|v(float)'
+FF_wide_bool = f's({scale(100)},{scale(10_000)})|v(bool)'
+FF_wide_int   = f's({scale(100)},{scale(10_000)})|v(int)'
+FF_wide_float = f's({scale(100)},{scale(10_000)})|v(float)'
 
 
-FF_tall_uniform = f's({scale(10_000)},{scale(100)})|v(bool)'
-FF_tall_mixed   = f's({scale(10_000)},{scale(100)})|v(int)'
-FF_tall_columnar   = f's({scale(10_000)},{scale(100)})|v(float)'
+FF_tall_bool = f's({scale(10_000)},{scale(100)})|v(bool)'
+FF_tall_int   = f's({scale(10_000)},{scale(100)})|v(int)'
+FF_tall_float   = f's({scale(10_000)},{scale(100)})|v(float)'
 
-FF_square_uniform = f's({scale(1_000)},{scale(1_000)})|v(bool)'
-FF_square_mixed   = f's({scale(1_000)},{scale(1_000)})|v(int)'
-FF_square_columnar = f's({scale(1_000)},{scale(1_000)})|v(float)'
+FF_square_bool = f's({scale(1_000)},{scale(1_000)})|v(bool)'
+FF_square_int   = f's({scale(1_000)},{scale(1_000)})|v(int)'
+FF_square_float = f's({scale(1_000)},{scale(1_000)})|v(float)'
 
 #-------------------------------------------------------------------------------
 
@@ -158,10 +164,10 @@ def plot_performance(frame: sf.Frame,
         # IterArrayA_Threads_Workers4.__name__: 1,
         # IterArrayA_Threads_Workers16.__name__: 2,
         ArrayMap_Single.__name__: 0,
-        ArrayMap_Process_Workers2.__name__: 1,
-        ArrayMap_Process_Workers4.__name__: 2,
-        ArrayMap_Process_Workers8.__name__: 3,
-        ArrayMap_Process_Workers16.__name__: 4,
+        # ArrayMap_Process_Workers2.__name__: 1,
+        # ArrayMap_Process_Workers4.__name__: 2,
+        # ArrayMap_Process_Workers8.__name__: 3,
+        # ArrayMap_Process_Workers16.__name__: 4,
 
         ArrayMap_Threads_Workers2.__name__: 11,
         ArrayMap_Threads_Workers4.__name__: 12,
@@ -222,8 +228,10 @@ def plot_performance(frame: sf.Frame,
     fig.set_size_inches(5.5, 3.5) # width, height
     fig.legend(post, names_display, loc='center right', fontsize=6)
     # horizontal, vertical
-    count = ff.parse(FF_tall_uniform).size
-    fig.text(.05, .96, f'Row-Wise Function Application: {count:.0e} Elements, {NUMBER} Iterations', fontsize=10)
+    count = ff.parse(FF_tall_bool).size
+    gil_enabled = sys._is_gil_enabled()
+    gil_str = "GIL enabled" if gil_enabled else "GIL disabled"
+    fig.text(.05, .96, f'Row-Wise Function Application: {count:.0e} Elements, {NUMBER} Iterations, {gil_str}', fontsize=10)
     fig.text(.05, .90, get_versions(), fontsize=6)
 
     # get fixtures size reference
@@ -231,7 +239,10 @@ def plot_performance(frame: sf.Frame,
     shape_msg = ' / '.join(f'{v}: {k}' for k, v in shape_map.items())
     fig.text(.05, .90, shape_msg, fontsize=6)
 
-    fp = '/tmp/ft-np-perf.png'
+    if gil_enabled:
+        fp = '/tmp/ft-np-perf-gil-enabled.png'
+    else:
+        fp = '/tmp/ft-np-perf-gil-disabled.png'
     plt.subplots_adjust(
             left=0.05,
             bottom=0.05,
@@ -283,7 +294,7 @@ CLS_READ = (
     # ArrayMap_Process_Workers8,
     # ArrayMap_Process_Workers16,
 
-    # ArrayMap_Threads_Workers2,
+    ArrayMap_Threads_Workers2,
     ArrayMap_Threads_Workers4,
     ArrayMap_Threads_Workers8,
     ArrayMap_Threads_Workers16,
@@ -293,17 +304,17 @@ CLS_READ = (
 def run_test():
     records = []
     for dtype_hetero, fixture_label, fixture in (
-            fixture_to_pair('uniform', FF_wide_uniform),
-            fixture_to_pair('mixed', FF_wide_mixed),
-            fixture_to_pair('columnar', FF_wide_columnar),
+            fixture_to_pair('bool', FF_wide_bool),
+            fixture_to_pair('int', FF_wide_int),
+            fixture_to_pair('float', FF_wide_float),
 
-            fixture_to_pair('uniform', FF_tall_uniform),
-            fixture_to_pair('mixed', FF_tall_mixed),
-            fixture_to_pair('columnar', FF_tall_columnar),
+            fixture_to_pair('bool', FF_tall_bool),
+            fixture_to_pair('int', FF_tall_int),
+            fixture_to_pair('float', FF_tall_float),
 
-            fixture_to_pair('uniform', FF_square_uniform),
-            fixture_to_pair('mixed', FF_square_mixed),
-            fixture_to_pair('columnar', FF_square_columnar),
+            fixture_to_pair('bool', FF_square_bool),
+            fixture_to_pair('int', FF_square_int),
+            fixture_to_pair('float', FF_square_float),
             ):
 
         for cls in CLS_READ:
