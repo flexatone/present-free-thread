@@ -294,7 +294,7 @@ CLS_READ = (
 
 def run_test():
     records = []
-    for dtype_hetero, fixture_label, fixture in (
+    for fixture_category, fixture_label, fixture in (
             fixture_to_pair('uniform', FF_wide_uniform),
             fixture_to_pair('mixed', FF_wide_mixed),
             fixture_to_pair('columnar', FF_wide_columnar),
@@ -310,7 +310,7 @@ def run_test():
 
         for cls in CLS_READ:
             runner = cls(fixture)
-            category = f'{dtype_hetero}'
+            category = f'{fixture_category}'
 
             record = [cls.__name__, NUMBER, category, fixture_label]
             print(record)

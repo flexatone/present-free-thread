@@ -3,8 +3,10 @@ import numpy as np
 import sys
 import os
 import timeit
+import subprocess
 from itertools import repeat
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import frame_fixtures as ff
 import matplotlib.pyplot as plt
@@ -112,7 +114,6 @@ FF_wide_bool = f's({scale(100)},{scale(10_000)})|v(bool)'
 FF_wide_int   = f's({scale(100)},{scale(10_000)})|v(int)'
 FF_wide_float = f's({scale(100)},{scale(10_000)})|v(float)'
 
-
 FF_tall_bool = f's({scale(10_000)},{scale(100)})|v(bool)'
 FF_tall_int   = f's({scale(10_000)},{scale(100)})|v(int)'
 FF_tall_float   = f's({scale(10_000)},{scale(100)})|v(float)'
@@ -120,6 +121,20 @@ FF_tall_float   = f's({scale(10_000)},{scale(100)})|v(float)'
 FF_square_bool = f's({scale(1_000)},{scale(1_000)})|v(bool)'
 FF_square_int   = f's({scale(1_000)},{scale(1_000)})|v(int)'
 FF_square_float = f's({scale(1_000)},{scale(1_000)})|v(float)'
+
+
+FIXTURE_MAP = {
+    'FF_wide_bool': FF_wide_bool,
+    'FF_wide_int': FF_wide_int,
+    'FF_wide_float': FF_wide_float,
+    'FF_tall_bool': FF_tall_bool,
+    'FF_tall_int': FF_tall_int,
+    'FF_tall_float': FF_tall_float,
+    'FF_square_bool': FF_square_bool,
+    'FF_square_int': FF_square_int,
+    'FF_square_float': FF_square_float,
+    }
+
 
 #-------------------------------------------------------------------------------
 
@@ -283,10 +298,11 @@ FIXTURE_SHAPE_MAP = {
 }
 
 
-def fixture_to_pair(label: str, fixture: str) -> tp.Tuple[str, str, str]:
+def fixture_to_pair(label: str, fixture_name: str) -> tp.Tuple[str, str, str]:
     # get a title
-    f = ff.parse(fixture)
-    return label, f'{f.shape[0]:}x{f.shape[1]}', fixture
+    fixture = FIXTURE_MAP[fixture_name]
+    f = ff.parse(fixture) # we inefficiently parse here just to get shape
+    return label, f'{f.shape[0]:}x{f.shape[1]}', fixture, fixture_name
 
 CLS_READ = (
     ArrayMap_Single,
@@ -300,38 +316,50 @@ CLS_READ = (
     ArrayMap_Threads_Workers16,
     )
 
+CLS_MAP = {cls.__name__: cls for cls in CLS_READ}
 
-def run_test():
+def run_test(subprocess: bool = True):
     records = []
-    for dtype_hetero, fixture_label, fixture in (
-            fixture_to_pair('bool', FF_wide_bool),
-            fixture_to_pair('int', FF_wide_int),
-            fixture_to_pair('float', FF_wide_float),
+    for fixture_category, fixture_label, fixture, fixture_name in (
+            fixture_to_pair('bool', 'FF_wide_bool'),
+            fixture_to_pair('int', 'FF_wide_int'),
+            fixture_to_pair('float', 'FF_wide_float'),
 
-            fixture_to_pair('bool', FF_tall_bool),
-            fixture_to_pair('int', FF_tall_int),
-            fixture_to_pair('float', FF_tall_float),
+            fixture_to_pair('bool', 'FF_tall_bool'),
+            fixture_to_pair('int', 'FF_tall_int'),
+            fixture_to_pair('float', 'FF_tall_float'),
 
-            fixture_to_pair('bool', FF_square_bool),
-            fixture_to_pair('int', FF_square_int),
-            fixture_to_pair('float', FF_square_float),
+            fixture_to_pair('bool', 'FF_square_bool'),
+            fixture_to_pair('int', 'FF_square_int'),
+            fixture_to_pair('float', 'FF_square_float'),
             ):
 
+        py_exe = Path.home() / '.env314t-preft/bin/python3'
         for cls in CLS_READ:
-            runner = cls(fixture)
-            category = f'{dtype_hetero}'
-
+            category = f'{fixture_category}'
             record = [cls.__name__, NUMBER, category, fixture_label]
             print(record)
-            try:
-                result = timeit.timeit(
-                        f'runner()',
-                        globals=locals(),
-                        number=NUMBER)
-            except OSError:
-                result = np.nan
-            finally:
-                pass
+
+
+            if subprocess:
+                cmd = [str(py_exe), '--cls', cls.__name__, '--fixture', fixture_name]
+                try:
+                    proc_result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                    result = float(proc_result.stdout.strip())
+                except (subprocess.CalledProcessError, ValueError, OSError):
+                    result = np.nan
+            else:
+                runner = cls(fixture)
+                try:
+                    result = timeit.timeit(
+                            f'runner()',
+                            globals=locals(),
+                            number=NUMBER)
+                except OSError:
+                    result = np.nan
+                finally:
+                    pass
+
             record.append(result)
             records.append(record)
 
@@ -352,8 +380,34 @@ def run_test():
     plot_performance(f, number=NUMBER)
 
 if __name__ == '__main__':
+    import argparse
 
-    run_test()
+    parser = argparse.ArgumentParser(description='Run performance tests')
+    parser.add_argument('--cls', type=str, help='Test class name to run')
+    parser.add_argument('--fixture', type=str, help='Fixture string to use')
+
+    args = parser.parse_args()
+
+    if args.cls and args.fixture:
+
+        if args.cls not in CLS_MAP:
+            print(f"Error: Unknown class '{args.cls}'")
+            print(f"Available classes: {', '.join(CLS_MAP.keys())}")
+            sys.exit(1)
+
+        fixture_name = FIXTURE_MAP[args.fixture]
+        _, _, fixture, _ = fixture_to_pair('', fixture_name)
+
+        runner = CLS_MAP[args.cls](fixture)
+        result = timeit.timeit(
+            f'runner()',
+            globals=locals(),
+            number=NUMBER
+        )
+        print(result)
+    else:
+        # Run full test suite
+        run_test()
 
 
 
