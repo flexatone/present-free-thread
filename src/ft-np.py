@@ -153,10 +153,10 @@ def plot_performance(frame: sf.Frame,
         # ArrayMap_Process_Workers8.__name__: 'iter_series.apply_pool(\nuse_threads=False,\nmax_workers=8)',
         # ArrayMap_Process_Workers16.__name__: 'iter_series.apply_pool(\nuse_threads=False,\nmax_workers=16)',
 
-        ArrayMap_Threads_Workers2.__name__: 'max_workers=2)',
-        ArrayMap_Threads_Workers4.__name__: 'max_workers=4)',
-        ArrayMap_Threads_Workers8.__name__: 'max_workers=8)',
-        ArrayMap_Threads_Workers16.__name__: 'max_workers=16)',
+        ArrayMap_Threads_Workers2.__name__: 'max_workers=2',
+        ArrayMap_Threads_Workers4.__name__: 'max_workers=4',
+        ArrayMap_Threads_Workers8.__name__: 'max_workers=8',
+        ArrayMap_Threads_Workers16.__name__: 'max_workers=16',
     }
 
     name_order = {
@@ -230,8 +230,8 @@ def plot_performance(frame: sf.Frame,
     # horizontal, vertical
     count = ff.parse(FF_tall_bool).size
     gil_enabled = sys._is_gil_enabled()
-    gil_str = "GIL enabled" if gil_enabled else "GIL disabled"
-    fig.text(.05, .96, f'Row-Wise Function Application: {count:.0e} Elements, {NUMBER} Iterations, {gil_str}', fontsize=10)
+    gil_str = "(GIL)" if gil_enabled else "(no GIL)"
+    fig.text(.05, .96, f'Row-Wise Array Processing: {count:.0e} Elements, {NUMBER} Iterations, {gil_str}', fontsize=10)
     fig.text(.05, .90, get_versions(), fontsize=6)
 
     # get fixtures size reference
