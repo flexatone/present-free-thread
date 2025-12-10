@@ -4,7 +4,6 @@ import sys
 import os
 import timeit
 import subprocess
-from itertools import repeat
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -35,11 +34,16 @@ class FTTest:
 # def proc(s):
 #     return s.loc[(s % 2) == 0].sum()
 
-def proc(row): # NOTE: as soon as we do selection
-    # return ((row * 0.5)**2).sum()  # this is about equal
-    # return (((row * 0.5) + 100)**2).sum()  # FT starts to outperform
-    return (row[row % 2 == 0]**2).sum()  # FT way outperforns
+# def proc(row): # ess: even squared sum
+#     return (row[row % 2 == 0]**2).sum()
 
+# PROC_DESCRIPTION = '(row[row % 2 == 0]**2).sum()'
+
+def proc(row):
+    p = row / row.sum()
+    return -(p * np.log(p + 1e-12)).sum()
+
+PROC_DESCRIPTION = 'Shannon Entropy'
 
 
 class ArrayMap_Single(FTTest):
@@ -211,7 +215,7 @@ def plot_performance(frame: sf.Frame,
             post = ax.bar(names_display, results, color=color)
 
             # ax.set_ylabel()
-            title = f'{cat_label.title()}\n{FIXTURE_SHAPE_MAP[fixture_label]}'
+            title = f'{cat_label}\n{FIXTURE_SHAPE_MAP[fixture_label]}'
             ax.set_title(title, fontsize=8)
             ax.set_box_aspect(0.75) # makes taller tan wide
             time_max = fixture['time'].max()
@@ -229,7 +233,7 @@ def plot_performance(frame: sf.Frame,
                 y_ticks.pop(1)
                 y_labels.pop(1)
             ax.set_yticks(y_ticks)
-            ax.set_yticklabels(y_labels, fontsize=6)
+            ax.set_yticklabels(y_labels, fontsize=4)
 
             # ax.set_xticks(x, names_display, rotation='vertical')
             ax.tick_params(
@@ -244,30 +248,32 @@ def plot_performance(frame: sf.Frame,
     fig.legend(post, names_display, loc='center right', fontsize=6)
     # horizontal, vertical
     count = ff.parse(FF_tall_bool).size
-    gil_enabled = sys._is_gil_enabled()
-    gil_str = "(GIL)" if gil_enabled else "(no GIL)"
-    fig.text(.05, .96, f'Row-Wise Array Processing: {count:.0e} Elements, {NUMBER} Iterations, {gil_str}', fontsize=10)
-    fig.text(.05, .90, get_versions(), fontsize=6)
 
-    # get fixtures size reference
+    fig.text(.05, .96, f'Array Row Processing: {count:.0e} Elements, {NUMBER} Iterations', fontsize=10)
+
     shape_map = {shape: FIXTURE_SHAPE_MAP[shape] for shape in frame['fixture'].unique()}
     shape_msg = ' / '.join(f'{v}: {k}' for k, v in shape_map.items())
-    fig.text(.05, .90, shape_msg, fontsize=6)
+    proc_msg = f'Processor: {PROC_DESCRIPTION}'
 
-    if gil_enabled:
-        fp = '/tmp/ft-np-perf-gil-enabled.png'
-    else:
-        fp = '/tmp/ft-np-perf-gil-disabled.png'
+    msg = [get_versions(), shape_msg, proc_msg]
+    fig.text(0.05, .87, '\n'.join(msg), fontsize=6)
+
+    # fig.text(.05, .90, get_versions(), fontsize=6)
+    # fig.text(.05, .89, shape_msg, fontsize=6)
+    # fig.text(.05, .86, f'Processor: {PROC_DESCRIPTION}', fontsize=6)
+
+    fp = '/tmp/ft-np-perf.png'
+
     plt.subplots_adjust(
-            left=0.05,
+            left=0.10,
             bottom=0.05,
             right=0.75,
             top=0.75,
-            wspace=0, # width
+            wspace=.5, # width
             hspace=1,
             )
     # plt.rcParams.update({'font.size': 22})
-    plt.savefig(fp, dpi=300)
+    plt.savefig(fp, dpi=600)
 
     if sys.platform.startswith('linux'):
         os.system(f'eog {fp}&')
@@ -280,7 +286,7 @@ def plot_performance(frame: sf.Frame,
 def get_versions() -> str:
     import platform
     py_version = sys.version[:sys.version.find('(')].strip()
-    return f'OS: {platform.system()} / Python: {py_version} / NumPy: {np.__version__}\n'
+    return f'OS: {platform.system()} / Python: {py_version} / NumPy: {np.__version__}'
 
 FIXTURE_SHAPE_MAP = {
     '100x1': 'Tall',
@@ -318,50 +324,55 @@ CLS_READ = (
 
 CLS_MAP = {cls.__name__: cls for cls in CLS_READ}
 
-def run_test(subprocess: bool = True):
+def run_test(subproc: bool = True):
     records = []
     for fixture_category, fixture_label, fixture, fixture_name in (
-            fixture_to_pair('bool', 'FF_wide_bool'),
+            # fixture_to_pair('bool', 'FF_wide_bool'),
             fixture_to_pair('int', 'FF_wide_int'),
-            fixture_to_pair('float', 'FF_wide_float'),
+            # fixture_to_pair('float', 'FF_wide_float'),
 
-            fixture_to_pair('bool', 'FF_tall_bool'),
+            # fixture_to_pair('bool', 'FF_tall_bool'),
             fixture_to_pair('int', 'FF_tall_int'),
-            fixture_to_pair('float', 'FF_tall_float'),
+            # fixture_to_pair('float', 'FF_tall_float'),
 
-            fixture_to_pair('bool', 'FF_square_bool'),
+            # fixture_to_pair('bool', 'FF_square_bool'),
             fixture_to_pair('int', 'FF_square_int'),
-            fixture_to_pair('float', 'FF_square_float'),
+            # fixture_to_pair('float', 'FF_square_float'),
             ):
 
-        py_exe = Path.home() / '.env314t-preft/bin/python3'
-        for cls in CLS_READ:
-            category = f'{fixture_category}'
-            record = [cls.__name__, NUMBER, category, fixture_label]
-            print(record)
+        py_exet = Path.home() / '.env314t-preft/bin/python3'
+        py_exe = Path.home()  / '.env314-preft/bin/python3'
+
+        entry = Path.cwd() / 'src/ft-np.py'
+        for py, gil_label in ((py_exe, 'GIL'), (py_exet, 'no-GIL')):
+            for cls in CLS_READ:
+                # category = f'{fixture_category}-{gil_label}'
+                category = gil_label
+                record = [cls.__name__, NUMBER, category, fixture_label]
+                print(record)
 
 
-            if subprocess:
-                cmd = [str(py_exe), '--cls', cls.__name__, '--fixture', fixture_name]
-                try:
-                    proc_result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-                    result = float(proc_result.stdout.strip())
-                except (subprocess.CalledProcessError, ValueError, OSError):
-                    result = np.nan
-            else:
-                runner = cls(fixture)
-                try:
-                    result = timeit.timeit(
-                            f'runner()',
-                            globals=locals(),
-                            number=NUMBER)
-                except OSError:
-                    result = np.nan
-                finally:
-                    pass
+                if subproc:
+                    cmd = [str(py), str(entry),  '--cls', cls.__name__, '--fixture', fixture_name]
+                    try:
+                        proc_result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                        result = float(proc_result.stdout.strip())
+                    except (subprocess.CalledProcessError, ValueError, OSError):
+                        result = np.nan
+                else:
+                    runner = cls(fixture)
+                    try:
+                        result = timeit.timeit(
+                                f'runner()',
+                                globals=locals(),
+                                number=NUMBER)
+                    except OSError:
+                        result = np.nan
+                    finally:
+                        pass
 
-            record.append(result)
-            records.append(record)
+                record.append(result)
+                records.append(record)
 
     f = sf.FrameGO.from_records(records,
             columns=('name', 'number', 'category', 'fixture', 'time')
@@ -395,8 +406,7 @@ if __name__ == '__main__':
             print(f"Available classes: {', '.join(CLS_MAP.keys())}")
             sys.exit(1)
 
-        fixture_name = FIXTURE_MAP[args.fixture]
-        _, _, fixture, _ = fixture_to_pair('', fixture_name)
+        _, _, fixture, _ = fixture_to_pair('', args.fixture)
 
         runner = CLS_MAP[args.cls](fixture)
         result = timeit.timeit(
