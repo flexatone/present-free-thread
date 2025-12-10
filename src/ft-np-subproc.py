@@ -31,19 +31,16 @@ class FTTest:
         raise NotImplementedError()
 
 
-# def proc(s):
-#     return s.loc[(s % 2) == 0].sum()
+def proc(row): # ess: even squared sum
+    return (row[row % 2 == 0]**2).sum()
 
-# def proc(row): # ess: even squared sum
-#     return (row[row % 2 == 0]**2).sum()
+PROC_DESCRIPTION = '(row[row % 2 == 0]**2).sum()'
 
-# PROC_DESCRIPTION = '(row[row % 2 == 0]**2).sum()'
+# def proc(row):
+#     p = row / row.sum()
+#     return -(p * np.log(p + 1e-12)).sum()
 
-def proc(row):
-    p = row / row.sum()
-    return -(p * np.log(p + 1e-12)).sum()
-
-PROC_DESCRIPTION = 'Shannon Entropy'
+# PROC_DESCRIPTION = 'Shannon Entropy'
 
 
 class ArrayMap_Single(FTTest):
@@ -108,10 +105,10 @@ class ArrayMap_Threads_Workers16(FTTest):
 
 
 #-------------------------------------------------------------------------------
-NUMBER = 4
+NUMBER = 1
 
 def scale(v):
-    return int(v * 10)
+    return int(v * .1)
 
 
 FF_wide_bool = f's({scale(100)},{scale(10_000)})|v(bool)'
@@ -325,7 +322,12 @@ CLS_READ = (
 CLS_MAP = {cls.__name__: cls for cls in CLS_READ}
 
 def run_test(subproc: bool = True):
+
+    py_exet = Path.home() / '.env314t-preft/bin/python3'
+    py_exe = Path.home()  / '.env314-preft/bin/python3'
+    entry_fp = Path(__file__).resolve()
     records = []
+
     for fixture_category, fixture_label, fixture, fixture_name in (
             # fixture_to_pair('bool', 'FF_wide_bool'),
             fixture_to_pair('int', 'FF_wide_int'),
@@ -340,10 +342,7 @@ def run_test(subproc: bool = True):
             # fixture_to_pair('float', 'FF_square_float'),
             ):
 
-        py_exet = Path.home() / '.env314t-preft/bin/python3'
-        py_exe = Path.home()  / '.env314-preft/bin/python3'
 
-        entry = Path.cwd() / 'src/ft-np.py'
         for py, gil_label in ((py_exe, 'GIL'), (py_exet, 'no-GIL')):
             for cls in CLS_READ:
                 # category = f'{fixture_category}-{gil_label}'
@@ -353,7 +352,7 @@ def run_test(subproc: bool = True):
 
 
                 if subproc:
-                    cmd = [str(py), str(entry),  '--cls', cls.__name__, '--fixture', fixture_name]
+                    cmd = [str(py), str(entry_fp),  '--cls', cls.__name__, '--fixture', fixture_name]
                     try:
                         proc_result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                         result = float(proc_result.stdout.strip())
