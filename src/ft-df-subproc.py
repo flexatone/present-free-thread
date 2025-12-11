@@ -25,17 +25,20 @@ class FTTest:
     SUFFIX = '.tmp'
 
     def __init__(self, fixture: str):
-        # use .values to strip out array
-        self.npa = ff.parse(fixture).values
+        self.sff = ff.parse(fixture)
 
     def __call__(self):
         raise NotImplementedError()
 
 
-def proc(row): # ess: even squared sum
-    return s.loc[(s % 2) == 0].sum()
+# def proc(row): # ess: even squared sum
+#     return (row[row % 2 == 0]**2).sum()
 
-PROC_DESCRIPTION = '(row[row % 2 == 0]**2).sum()'
+
+def proc(s):
+    return (s.loc[s % 2 == 0] ** 2).sum()
+
+PROC_DESCRIPTION = '(s.loc[s % 2 == 0] ** 2).sum()'
 
 # def proc(row):
 #     p = row / row.sum()
@@ -44,60 +47,62 @@ PROC_DESCRIPTION = '(row[row % 2 == 0]**2).sum()'
 # PROC_DESCRIPTION = 'Shannon Entropy'
 
 
-class ArrayMap_Single(FTTest):
+
+
+class IterSeriesA_Single(FTTest):
     def __call__(self):
-        _ = np.fromiter((proc(row) for row in self.npa), dtype=float, count=self.npa.shape[0])
+        _ = self.sff.iter_series(axis=1).apply(proc)
+        # import ipdb; ipdb.set_trace()
 
 
-# class ArrayMap_Process_Workers2(FTTest):
-#     def __call__(self):
-#         _ = self.npa.iter_series(axis=1).apply_pool(proc,
-#                 chunksize=10, use_threads=False, max_workers=2)
-
-
-# class ArrayMap_Process_Workers4(FTTest):
-#     def __call__(self):
-#         _ = self.npa.iter_series(axis=1).apply_pool(proc,
-#                 chunksize=10, use_threads=False, max_workers=4)
-
-
-# class ArrayMap_Process_Workers8(FTTest):
-#     def __call__(self):
-#         _ = self.npa.iter_series(axis=1).apply_pool(proc,
-#                 chunksize=10, use_threads=False, max_workers=8)
-
-
-# class ArrayMap_Process_Workers16(FTTest):
-#     def __call__(self):
-#         _ = self.npa.iter_series(axis=1).apply_pool(proc,
-#                 chunksize=10, use_threads=False, max_workers=16)
-
-
-
-
-
-class ArrayMap_Threads_Workers2(FTTest):
+class IterSeriesA_Process_Workers2(FTTest):
     def __call__(self):
+        _ = self.sff.iter_series(axis=1).apply_pool(proc,
+                chunksize=10, use_threads=False, max_workers=2)
 
-        with ThreadPoolExecutor(max_workers=2) as ex:
-            _ = np.fromiter(ex.map(proc, self.npa), dtype=float, count=self.npa.shape[0])
 
-class ArrayMap_Threads_Workers4(FTTest):
+class IterSeriesA_Process_Workers4(FTTest):
     def __call__(self):
+        _ = self.sff.iter_series(axis=1).apply_pool(proc,
+                chunksize=10, use_threads=False, max_workers=4)
 
-        with ThreadPoolExecutor(max_workers=4) as ex:
-            _ = np.fromiter(ex.map(proc, self.npa), dtype=float, count=self.npa.shape[0])
 
-
-class ArrayMap_Threads_Workers8(FTTest):
+class IterSeriesA_Process_Workers8(FTTest):
     def __call__(self):
-        with ThreadPoolExecutor(max_workers=8) as ex:
-            _ = np.fromiter(ex.map(proc, self.npa), dtype=float, count=self.npa.shape[0])
+        _ = self.sff.iter_series(axis=1).apply_pool(proc,
+                chunksize=10, use_threads=False, max_workers=8)
 
-class ArrayMap_Threads_Workers16(FTTest):
+
+class IterSeriesA_Process_Workers16(FTTest):
     def __call__(self):
-        with ThreadPoolExecutor(max_workers=16) as ex:
-            _ = np.fromiter(ex.map(proc, self.npa), dtype=float, count=self.npa.shape[0])
+        _ = self.sff.iter_series(axis=1).apply_pool(proc,
+                chunksize=10, use_threads=False, max_workers=16)
+
+
+
+
+
+class IterSeriesA_Threads_Workers2(FTTest):
+    def __call__(self):
+        _ = self.sff.iter_series(axis=1).apply_pool(proc,
+                chunksize=10, use_threads=True, max_workers=2)
+
+
+class IterSeriesA_Threads_Workers4(FTTest):
+    def __call__(self):
+        _ = self.sff.iter_series(axis=1).apply_pool(proc,
+                chunksize=10, use_threads=True, max_workers=4)
+
+class IterSeriesA_Threads_Workers8(FTTest):
+    def __call__(self):
+        _ = self.sff.iter_series(axis=1).apply_pool(proc,
+                chunksize=10, use_threads=True, max_workers=8)
+
+
+class IterSeriesA_Threads_Workers16(FTTest):
+    def __call__(self):
+        _ = self.sff.iter_series(axis=1).apply_pool(proc,
+                chunksize=10, use_threads=True, max_workers=16)
 
 
 
@@ -106,35 +111,38 @@ class ArrayMap_Threads_Workers16(FTTest):
 
 
 #-------------------------------------------------------------------------------
-NUMBER = 1
+NUMBER = 4
 
 def scale(v):
-    return int(v * .1)
+    return int(v * 10)
+
+VALUES_UNIFORM = 'float'
+VALUES_MIXED = 'int,int,int,int,bool,bool,bool,bool,float,float,float,float'
+VALUES_COLUMNAR = 'int,bool,float'
+
+FF_wide_uniform = f's({scale(100)},{scale(10_000)})|v({VALUES_UNIFORM})|i(I,int)|c(I,str)'
+FF_wide_mixed   = f's({scale(100)},{scale(10_000)})|v({VALUES_MIXED})|i(I,int)|c(I,str)'
+FF_wide_columnar = f's({scale(100)},{scale(10_000)})|v({VALUES_COLUMNAR})|i(I,int)|c(I,str)'
 
 
-FF_wide_bool = f's({scale(100)},{scale(10_000)})|v(bool)'
-FF_wide_int   = f's({scale(100)},{scale(10_000)})|v(int)'
-FF_wide_float = f's({scale(100)},{scale(10_000)})|v(float)'
+FF_tall_uniform = f's({scale(10_000)},{scale(100)})|v({VALUES_UNIFORM})|i(I,int)|c(I,str)'
+FF_tall_mixed   = f's({scale(10_000)},{scale(100)})|v({VALUES_MIXED})|i(I,int)|c(I,str)'
+FF_tall_columnar   = f's({scale(10_000)},{scale(100)})|v({VALUES_COLUMNAR})|i(I,int)|c(I,str)'
 
-FF_tall_bool = f's({scale(10_000)},{scale(100)})|v(bool)'
-FF_tall_int   = f's({scale(10_000)},{scale(100)})|v(int)'
-FF_tall_float   = f's({scale(10_000)},{scale(100)})|v(float)'
-
-FF_square_bool = f's({scale(1_000)},{scale(1_000)})|v(bool)'
-FF_square_int   = f's({scale(1_000)},{scale(1_000)})|v(int)'
-FF_square_float = f's({scale(1_000)},{scale(1_000)})|v(float)'
-
+FF_square_uniform = f's({scale(1_000)},{scale(1_000)})|v({VALUES_UNIFORM})|i(I,int)|c(I,str)'
+FF_square_mixed   = f's({scale(1_000)},{scale(1_000)})|v({VALUES_MIXED})|i(I,int)|c(I,str)'
+FF_square_columnar = f's({scale(1_000)},{scale(1_000)})|v({VALUES_COLUMNAR})|i(I,int)|c(I,str)'
 
 FIXTURE_MAP = {
-    'FF_wide_bool': FF_wide_bool,
-    'FF_wide_int': FF_wide_int,
-    'FF_wide_float': FF_wide_float,
-    'FF_tall_bool': FF_tall_bool,
-    'FF_tall_int': FF_tall_int,
-    'FF_tall_float': FF_tall_float,
-    'FF_square_bool': FF_square_bool,
-    'FF_square_int': FF_square_int,
-    'FF_square_float': FF_square_float,
+    'FF_wide_uniform': FF_wide_uniform,
+    'FF_wide_mixed': FF_wide_mixed,
+    'FF_wide_columnar': FF_wide_columnar,
+    'FF_tall_uniform': FF_tall_uniform,
+    'FF_tall_mixed': FF_tall_mixed,
+    'FF_tall_columnar': FF_tall_columnar,
+    'FF_square_uniform': FF_square_uniform,
+    'FF_square_mixed': FF_square_mixed,
+    'FF_square_columnar': FF_square_columnar,
     }
 
 
@@ -159,37 +167,37 @@ def plot_performance(frame: sf.Frame,
     fig, axes = plt.subplots(cat_total, fixture_total)
 
     # for legend
+
+    # for legend
     name_replace = {
-        # IterArrayA_Single.__name__: 'iter_array()',
-        # IterArrayA_Threads_Workers4.__name__: 'iter_array(use_threads=True,\nmax_workers=4)',
-        # IterArrayA_Threads_Workers16.__name__: 'iter_array(use_threads=True,\nmax_workers=16)',
-        ArrayMap_Single.__name__: 'sequential',
 
-        # ArrayMap_Process_Workers2.__name__: 'iter_series.apply_pool(\nuse_threads=False,\nmax_workers=2)',
-        # ArrayMap_Process_Workers4.__name__: 'iter_series.apply_pool(\nuse_threads=False,\nmax_workers=4)',
-        # ArrayMap_Process_Workers8.__name__: 'iter_series.apply_pool(\nuse_threads=False,\nmax_workers=8)',
-        # ArrayMap_Process_Workers16.__name__: 'iter_series.apply_pool(\nuse_threads=False,\nmax_workers=16)',
+        IterSeriesA_Single.__name__: 'iter_series.apply()',
 
-        ArrayMap_Threads_Workers2.__name__: 'max_workers=2',
-        ArrayMap_Threads_Workers4.__name__: 'max_workers=4',
-        ArrayMap_Threads_Workers8.__name__: 'max_workers=8',
-        ArrayMap_Threads_Workers16.__name__: 'max_workers=16',
+        IterSeriesA_Process_Workers2.__name__: 'iter_series.apply_pool(\nuse_threads=False,\nmax_workers=2)',
+        IterSeriesA_Process_Workers4.__name__: 'iter_series.apply_pool(\nuse_threads=False,\nmax_workers=4)',
+        IterSeriesA_Process_Workers8.__name__: 'iter_series.apply_pool(\nuse_threads=False,\nmax_workers=8)',
+        IterSeriesA_Process_Workers16.__name__: 'iter_series.apply_pool(\nuse_threads=False,\nmax_workers=16)',
+
+        IterSeriesA_Threads_Workers2.__name__: 'iter_series.apply_pool(\nuse_threads=True,\nmax_workers=2)',
+        IterSeriesA_Threads_Workers4.__name__: 'iter_series.apply_pool(\nuse_threads=True,\nmax_workers=4)',
+        IterSeriesA_Threads_Workers8.__name__: 'iter_series.apply_pool(\nuse_threads=True,\nmax_workers=8)',
+        IterSeriesA_Threads_Workers16.__name__: 'iter_series.apply_pool(\nuse_threads=True,\nmax_workers=16)',
     }
 
     name_order = {
         # IterArrayA_Single.__name__: 0,
         # IterArrayA_Threads_Workers4.__name__: 1,
         # IterArrayA_Threads_Workers16.__name__: 2,
-        ArrayMap_Single.__name__: 0,
-        # ArrayMap_Process_Workers2.__name__: 1,
-        # ArrayMap_Process_Workers4.__name__: 2,
-        # ArrayMap_Process_Workers8.__name__: 3,
-        # ArrayMap_Process_Workers16.__name__: 4,
+        IterSeriesA_Single.__name__: 0,
+        IterSeriesA_Process_Workers2.__name__: 1,
+        IterSeriesA_Process_Workers4.__name__: 2,
+        IterSeriesA_Process_Workers8.__name__: 3,
+        IterSeriesA_Process_Workers16.__name__: 4,
 
-        ArrayMap_Threads_Workers2.__name__: 11,
-        ArrayMap_Threads_Workers4.__name__: 12,
-        ArrayMap_Threads_Workers8.__name__: 13,
-        ArrayMap_Threads_Workers16.__name__: 14,
+        IterSeriesA_Threads_Workers2.__name__: 11,
+        IterSeriesA_Threads_Workers4.__name__: 12,
+        IterSeriesA_Threads_Workers8.__name__: 13,
+        IterSeriesA_Threads_Workers16.__name__: 14,
     }
 
     # cmap = plt.get_cmap('terrain')
@@ -245,22 +253,23 @@ def plot_performance(frame: sf.Frame,
     fig.set_size_inches(5.5, 3.5) # width, height
     fig.legend(post, names_display, loc='center right', fontsize=6)
     # horizontal, vertical
-    count = ff.parse(FF_tall_bool).size
+    count = ff.parse(FF_tall_uniform).size
 
-    fig.text(.05, .96, f'Array Row Processing: {count:.0e} Elements, {NUMBER} Iterations', fontsize=10)
+    fig.text(.05, .96, f'DataFrame Row Processing: {count:.0e} Elements, {NUMBER} Iterations', fontsize=10)
 
     shape_map = {shape: FIXTURE_SHAPE_MAP[shape] for shape in frame['fixture'].unique()}
     shape_msg = ' / '.join(f'{v}: {k}' for k, v in shape_map.items())
     proc_msg = f'Processor: {PROC_DESCRIPTION}'
+    typing_msg = f'Type Heterogeneity: {FIXTURE_TYPING}'
 
-    msg = [get_versions(), shape_msg, proc_msg]
-    fig.text(0.05, .87, '\n'.join(msg), fontsize=6)
+    msg = [get_versions(), shape_msg, proc_msg, typing_msg]
+    fig.text(0.05, .85, '\n'.join(msg), fontsize=6)
 
     # fig.text(.05, .90, get_versions(), fontsize=6)
     # fig.text(.05, .89, shape_msg, fontsize=6)
     # fig.text(.05, .86, f'Processor: {PROC_DESCRIPTION}', fontsize=6)
 
-    fp = '/tmp/ft-np-perf.png'
+    fp = '/tmp/ft-df-perf.png'
 
     plt.subplots_adjust(
             left=0.10,
@@ -308,19 +317,23 @@ def fixture_to_pair(label: str, fixture_name: str) -> tp.Tuple[str, str, str]:
     f = ff.parse(fixture) # we inefficiently parse here just to get shape
     return label, f'{f.shape[0]:}x{f.shape[1]}', fixture, fixture_name
 
-CLS_READ = (
-    ArrayMap_Single,
-    # ArrayMap_Process_Workers4,
-    # ArrayMap_Process_Workers8,
-    # ArrayMap_Process_Workers16,
 
-    ArrayMap_Threads_Workers2,
-    ArrayMap_Threads_Workers4,
-    ArrayMap_Threads_Workers8,
-    ArrayMap_Threads_Workers16,
+CLS_READ = (
+    IterSeriesA_Single,
+    # IterSeriesA_Process_Workers4,
+    # IterSeriesA_Process_Workers8,
+    # IterSeriesA_Process_Workers16,
+
+    IterSeriesA_Threads_Workers2,
+    IterSeriesA_Threads_Workers4,
+    IterSeriesA_Threads_Workers8,
+    IterSeriesA_Threads_Workers16,
     )
 
 CLS_MAP = {cls.__name__: cls for cls in CLS_READ}
+
+
+FIXTURE_TYPING = 'Columnar'
 
 def run_test(subproc: bool = True):
 
@@ -330,17 +343,13 @@ def run_test(subproc: bool = True):
     records = []
 
     for fixture_category, fixture_label, fixture, fixture_name in (
-            # fixture_to_pair('bool', 'FF_wide_bool'),
-            fixture_to_pair('int', 'FF_wide_int'),
-            # fixture_to_pair('float', 'FF_wide_float'),
+            fixture_to_pair('uniform', 'FF_wide_uniform'),
+            fixture_to_pair('uniform', 'FF_tall_uniform'),
+            fixture_to_pair('uniform', 'FF_square_uniform'),
 
-            # fixture_to_pair('bool', 'FF_tall_bool'),
-            fixture_to_pair('int', 'FF_tall_int'),
-            # fixture_to_pair('float', 'FF_tall_float'),
-
-            # fixture_to_pair('bool', 'FF_square_bool'),
-            fixture_to_pair('int', 'FF_square_int'),
-            # fixture_to_pair('float', 'FF_square_float'),
+            fixture_to_pair('columnar', 'FF_wide_columnar'),
+            fixture_to_pair('columnar', 'FF_tall_columnar'),
+            fixture_to_pair('columnar', 'FF_square_columnar'),
             ):
 
 
@@ -354,6 +363,7 @@ def run_test(subproc: bool = True):
 
                 if subproc:
                     cmd = [str(py), str(entry_fp),  '--cls', cls.__name__, '--fixture', fixture_name]
+                    # import ipdb; ipdb.set_trace()
                     try:
                         proc_result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                         result = float(proc_result.stdout.strip())

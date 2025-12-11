@@ -285,7 +285,6 @@ CLS_READ = (
     # IterSeriesA_Process_Workers8,
     # IterSeriesA_Process_Workers16,
 
-    # IterSeriesA_Threads_Workers2,
     IterSeriesA_Threads_Workers4,
     IterSeriesA_Threads_Workers8,
     IterSeriesA_Threads_Workers16,
