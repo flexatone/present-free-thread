@@ -35,10 +35,10 @@ class FTTest:
 #     return (row[row % 2 == 0]**2).sum()
 
 
-def proc(s):
-    return (s.loc[s % 2 == 0] ** 2).sum()
+# def proc(s):
+#     return (s.loc[s % 2 == 0] ** 2).sum()
 
-PROC_DESCRIPTION = '(s.loc[s % 2 == 0] ** 2).sum()'
+# PROC_DESCRIPTION = '(s.loc[s % 2 == 0] ** 2).sum()'
 
 # def proc(row):
 #     p = row / row.sum()
@@ -46,7 +46,10 @@ PROC_DESCRIPTION = '(s.loc[s % 2 == 0] ** 2).sum()'
 
 # PROC_DESCRIPTION = 'Shannon Entropy'
 
+def proc(s):
+    return s.iloc[list(range(0, len(s), 3))].mean()
 
+PROC_DESCRIPTION = 's.iloc[list(range(0, len(s), 3))].mean()'
 
 
 class IterSeriesA_Single(FTTest):
@@ -343,9 +346,9 @@ def run_test(subproc: bool = True):
     records = []
 
     for fixture_category, fixture_label, fixture, fixture_name in (
-            fixture_to_pair('uniform', 'FF_wide_uniform'),
-            fixture_to_pair('uniform', 'FF_tall_uniform'),
-            fixture_to_pair('uniform', 'FF_square_uniform'),
+            # fixture_to_pair('uniform', 'FF_wide_uniform'),
+            # fixture_to_pair('uniform', 'FF_tall_uniform'),
+            # fixture_to_pair('uniform', 'FF_square_uniform'),
 
             fixture_to_pair('columnar', 'FF_wide_columnar'),
             fixture_to_pair('columnar', 'FF_tall_columnar'),
