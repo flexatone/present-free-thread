@@ -33,7 +33,8 @@
   line-height: 1.6 !important;
 }
 
-.slidev-layout li li {
+.slidev-layout li li,
+.slidev-layout li div {
   font-size: 1em !important;
 }
 

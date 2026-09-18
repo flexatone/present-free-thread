@@ -1,23 +1,10 @@
 
 
-
 ==
 
 # Getting Started with Free-Threaded Python Using NumPy
 
 
-<!--
-# Getting Started with Free-Threaded Python
-# Process Arrays and DataFrames Faster with Free-Threaded Python
-# Accelerate Array and DataFrame Processing with Free-Threaded Python
-
-# Free-Threaded Python Can Accelerate Array and DataFrame Processing Now
-# How Free-Threaded Python Powers Function Application to Arrays and DataFrames
-# Embarrassingly Parallel Function Application to Arrays and DataFrames
-# Free-Threaded Function Application on Arrays and DataFrames
-# Free-thread Python and Immutable Data Frames
-
--->
 
 ## Description (500 chars)
 

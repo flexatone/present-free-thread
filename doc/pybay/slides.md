@@ -34,25 +34,26 @@ For many of us who have used Python for decades, you cannot help but bristle a l
 Yes, its some operations are slow, but we get have such readability and flexability
 Yes, numerical ops are also slow but we have access to excellent C-libraries like NumPy and Arrow
 But when aspect of Python performance remained hard to justify: no true CPU concurrency
+And frankly, it was embarrasing!
 -->
 
 
 
 
-
-
-
 ---
 class: history
 ---
 
-# Risks of Python Package Installation
+# Embarrassingly Parallel Operations
 
 <v-clicks depth=2>
 
-- Arbitrary Code Execution (ACE)
-- Your privileges are enough
-- Transitive dependencies increase complexity
+- Embarrassing because no dependencies between tasks
+- Independent processing on collections of data
+    - Applying the same function to numerous files or images
+    - Processing numerous simulations scenarios
+    - Processing records from a DB query
+    - Processing rows or columns from an array or DataFrame
 
 </v-clicks>
 
@@ -62,20 +63,95 @@ class: history
 class: history
 ---
 
-# Origins of Package-Based Attacks
+# Embarrassingly Parallel Operations
 
 <v-clicks depth=2>
 
-- Compromised maintainer credentials
-    - Injection of malicious code (trojan, hijacking)
-    - Addition of a malicious dependency (e.g. Axios)
-- Typosquatting & Masquerading
-    - `requesuts`, `grokwrapper`
-- Dependency confusion (e.g. PyTorch `torchtriton`)
-- Social Engineering
-    - Fake recruiters, fake IT support
+- Embarrassing because no dependencies between tasks
+- Independent processing on collections of data
+    - Applying the same function to numerous files or images
+    - Processing numerous simulations scenarios
+    - Processing records from a DB query
+    - Processing rows or columns from an array or DataFrame
 
 </v-clicks>
+
+
+
+---
+class: history
+---
+
+# But Python Has Long Supported Concurrency
+
+<v-clicks depth=2>
+
+- Multithreading and Multiprocessing
+- Multithreading
+    - Excellent for I/O-bound processing
+    - Terrible for CPU-bound processing
+    - The Global Interpreter Lock (GIL)
+- Multiprocessing
+    - Excellent for try CPU concurrency
+    - Significant startup and memory overhead
+    - Practical only when unit of work are large
+
+</v-clicks>
+
+
+
+---
+class: history
+---
+
+# The GIL
+
+<v-clicks depth=2>
+
+- The GIL ensured no data races
+- Only one thread could execute bytecode at time
+- Over a decade of work to remove the GIL has succeeded
+- No GIL is "free-threaded"
+
+</v-clicks>
+
+
+
+---
+class: history
+---
+
+# The Journey to No-GIL
+
+<v-clicks depth=2>
+
+- Thread-safe reference counting
+    - Per-thread, deferred, biased ref counts
+    - Immortal objects
+- Built-in locking in containers
+- A new memory allocator (mimalloc)
+- Garbage collection synchronization
+
+</v-clicks>
+
+
+
+---
+layout: center
+class: text-center quote
+---
+
+<style scoped>
+.slidev-layout {
+  background-color: #0f0f1e;
+  background-image: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(60, 60, 110, 0.5) 0%, transparent 100%);
+}
+</style>
+
+# Free-threading is the greatest enhancement to Python performance
+
+
+
 
 
 ---
@@ -86,9 +162,9 @@ class: history
 
 <v-clicks depth=2>
 
-- Supply chain risks in my organization
-- Recognition that no controls are foolproof
-- Developed system-wide Python vulnerability scanner `fetter`
+- Lots of CPU-bound processing
+- Lots of column or row wise calculations
+- Multiprocessing overhead would overwhelm concurrency benefits
 
 </v-clicks>
 
@@ -100,9 +176,23 @@ class: history
 
 <v-clicks depth=2>
 
-- Users are gateways into organizations
-- Credential & API key theft can have severe consequences
-- Practical mitigations are available
+- Free-threading offers the quickest path to material better performance
+- Easy to use
+
+</v-clicks>
+
+
+---
+class: history
+---
+
+# Why NumPy
+
+<v-clicks depth=2>
+
+- Example of processing NumPy 2D arrays generalize
+- NumPy is already fast and (sometimes) GIL-free
+- Faster NumPy processing is extraordinary
 
 </v-clicks>
 
@@ -141,7 +231,13 @@ class: history
 
 - Two different binaries available
     - Python.org
-    - homebrew
+    - homebrew: `brew install python-freethreading`
+    - apt:
+        ```bash
+        sudo add-apt-repository ppa:deadsnakes/ppa
+        sudo apt update
+        sudo apt install python3.14-nogil
+        ```
 - Compiling Python with `--disable-gil`
 
 </v-clicks>
@@ -156,6 +252,7 @@ class: history
 <v-clicks depth=2>
 
 - `python3.14t`
+- The GIL is not disabled, no removed
 - Reenabling the GIL
     - `PYTHON_GIL=1` environment variable
     - `-X gil=1` flag at launch
@@ -268,13 +365,74 @@ class: mitigation
 ― Configurable worker counts
     - More threads can degrade performance
 - Executor `map()` processes one function with many args
-```python
-    with ThreadPoolExecutor() as ex:
-        result = list(ex.map(f, args))
-```
 
 </v-clicks>
 
+
+
+
+---
+class: mitigation
+---
+
+# `ThreadPoolExecutor` ordered results
+
+```python
+from concurrent.futures import ThreadPoolExecutor
+
+def add(a, b):
+    return a + b
+
+left = [1, 2, 3, 4]
+right = [10, 20, 30, 40]
+
+with ThreadPoolExecutor() as executor:
+    results = list(executor.map(add, left, right))
+```
+
+
+
+
+---
+class: mitigation
+---
+
+# `ThreadPoolExecutor` ordered results
+
+```python
+def add(a, b):
+    return a + b
+
+pairs = [(1, 10), (2, 20), (3, 30)]
+
+with ThreadPoolExecutor() as executor:
+    futures = [executor.submit(add, *args) for args in pairs]
+    results = [future.result() for future in futures]
+```
+
+---
+class: mitigation
+---
+
+# `ThreadPoolExecutor` fastest results
+
+```python
+def add(a, b):
+    return a + b
+
+pairs = [(1, 10), (2, 20), (3, 30)]
+
+results = [None] * len(pairs)
+
+with ThreadPoolExecutor() as executor:
+    futures = {
+        executor.submit(add, *args): i
+        for i, args in enumerate(pairs)
+    }
+    for future in as_completed(futures):
+        i = futures[future]
+        results[i] = future.result()
+```
 
 
 
