@@ -31,10 +31,10 @@ class: text-center quote
 <!--
 We have all heard this said many times
 For many of us who have used Python for decades, you cannot help but bristle a little bit
-Yes, its some operations are slow, but we get have such readability and flexability
+Yes, some operations are slow, but we get have such readability and flexability
 Yes, numerical ops are also slow but we have access to excellent C-libraries like NumPy and Arrow
 But when aspect of Python performance remained hard to justify: no true CPU concurrency
-And frankly, it was embarrasing!
+And frankly, it was embarrassing!
 -->
 
 
@@ -53,29 +53,9 @@ class: history
     - Applying the same function to numerous files or images
     - Processing numerous simulations scenarios
     - Processing records from a DB query
-    - Processing rows or columns from an array or DataFrame
+    - Processing rows or columns from an array
 
 </v-clicks>
-
-
-
----
-class: history
----
-
-# Embarrassingly Parallel Operations
-
-<v-clicks depth=2>
-
-- Embarrassing because no dependencies between tasks
-- Independent processing on collections of data
-    - Applying the same function to numerous files or images
-    - Processing numerous simulations scenarios
-    - Processing records from a DB query
-    - Processing rows or columns from an array or DataFrame
-
-</v-clicks>
-
 
 
 ---
@@ -92,11 +72,56 @@ class: history
     - Terrible for CPU-bound processing
     - The Global Interpreter Lock (GIL)
 - Multiprocessing
-    - Excellent for try CPU concurrency
+    - Excellent for true CPU concurrency
     - Significant startup and memory overhead
-    - Practical only when unit of work are large
+    - Practical only when units of work are large
 
 </v-clicks>
+
+
+---
+class: history
+---
+
+# GIL-Bound Threading
+
+```python {1-6|8-9|11-12}
+>>> from concurrent.futures import ThreadPoolExecutor
+>>> import numpy as np
+
+>>> array = np.arange(100_000_000).reshape(10_000, 10_000)
+>>> def f(row): (row[row % 2 == 0]**2).sum()
+...
+
+>>> %timeit np.fromiter((f(row) for row in array), dtype=float, count=array.shape[0])
+313 ms ± 4.92 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+
+>>> %timeit with ThreadPoolExecutor() as ex: np.fromiter(ex.map(f, array), dtype=float, count=array.shape[0])
+383 ms ± 12.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+```
+
+---
+class: history
+---
+
+# Free-Threading
+
+```python {1-6|8-9|11-12}
+>>> from concurrent.futures import ThreadPoolExecutor
+>>> import numpy as np
+
+>>> array = np.arange(100_000_000).reshape(10_000, 10_000)
+>>> def f(row): (row[row % 2 == 0]**2).sum()
+...
+
+>>> %timeit np.fromiter((f(row) for row in array), dtype=float, count=array.shape[0])
+306 ms ± 2.25 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+
+>>> %timeit with ThreadPoolExecutor() as ex: np.fromiter(ex.map(f, array), dtype=float, count=array.shape[0])
+71 ms ± 682 μs per loop (mean ± std. dev. of 7 runs, 10 loops each)
+```
+
+
 
 
 
@@ -111,7 +136,7 @@ class: history
 - The GIL ensured no data races
 - Only one thread could execute bytecode at time
 - Over a decade of work to remove the GIL has succeeded
-- No GIL is "free-threaded"
+- "No GIL" is "free-threaded"
 
 </v-clicks>
 
@@ -252,7 +277,7 @@ class: history
 <v-clicks depth=2>
 
 - `python3.14t`
-- The GIL is not disabled, no removed
+- The GIL is disabled, not removed
 - Reenabling the GIL
     - `PYTHON_GIL=1` environment variable
     - `-X gil=1` flag at launch
@@ -303,7 +328,6 @@ PyInit_mymodule(void)
 </v-clicks>
 
 
-
 ---
 class: history
 ---
@@ -319,6 +343,12 @@ class: history
 </v-clicks>
 
 
+
+
+
+
+
+<!-- III -->
 
 ---
 layout: center
@@ -362,20 +392,18 @@ class: mitigation
 <v-clicks depth=2>
 
 - Context manager for multi-threaded processing
-― Configurable worker counts
-    - More threads can degrade performance
+- Configurable worker counts
+- More threads can degrade performance
 - Executor `map()` processes one function with many args
 
 </v-clicks>
-
-
 
 
 ---
 class: mitigation
 ---
 
-# `ThreadPoolExecutor` ordered results
+# `ThreadPoolExecutor` Ordered, Arg Lists
 
 ```python
 from concurrent.futures import ThreadPoolExecutor
@@ -391,13 +419,11 @@ with ThreadPoolExecutor() as executor:
 ```
 
 
-
-
 ---
 class: mitigation
 ---
 
-# `ThreadPoolExecutor` ordered results
+# `ThreadPoolExecutor` Ordered, Arg Tuples
 
 ```python
 def add(a, b):
@@ -414,24 +440,21 @@ with ThreadPoolExecutor() as executor:
 class: mitigation
 ---
 
-# `ThreadPoolExecutor` fastest results
+# `ThreadPoolExecutor` As Completed
 
 ```python
 def add(a, b):
     return a + b
 
 pairs = [(1, 10), (2, 20), (3, 30)]
-
 results = [None] * len(pairs)
 
-with ThreadPoolExecutor() as executor:
+with ThreadPoolExecutor() as ex:
     futures = {
-        executor.submit(add, *args): i
-        for i, args in enumerate(pairs)
+        ex.submit(add, *args): i for i, args in enumerate(pairs)
     }
     for future in as_completed(futures):
-        i = futures[future]
-        results[i] = future.result()
+        results[futures[future]] = future.result()
 ```
 
 
@@ -449,10 +472,7 @@ class: mitigation
     - `flags.writeable`
 - Immutability makes data races impossible
 
-
 </v-clicks>
-
-
 
 
 ---
@@ -463,12 +483,105 @@ class: mitigation
 
 <v-clicks depth=2>
 
-- `ThreadPoolExecutor.map()`
-- `numpy.from_iter()`
-― Processing rows into a 2D array
-― Processing rows into other PyObjects
+- `ThreadPoolExecutor.map()` of 1D arrays
+- `numpy.from_iter()` to build 1D array
+- Processing rows into a 2D array
+- Processing rows into other PyObjects
 
 </v-clicks>
+
+
+---
+class: mitigation
+---
+
+# Configuring Worker Counts
+
+<v-clicks depth=2>
+
+- More threads can do more work per wall time
+- More threads incur overhead
+- `max_workers` parameter
+    - Default: `max_workers=min(32, (os.process_cpu_count() or 1) + 4)`
+    - Test and measure
+
+</v-clicks>
+
+
+
+
+
+
+
+
+
+
+<!-- IV -->
+
+---
+layout: center
+class: text-center
+---
+
+<style scoped>
+.slidev-layout {
+  background-color: #1a2e2a;
+  background-image: radial-gradient(rgba(255,255,255,0.05) 2px, transparent 2px);
+  background-size: 48px 48px;
+}
+</style>
+
+# Performance Panels
+
+<div style="position:absolute;right:-5%;bottom:-5%;font-size:450px !important;line-height:1 !important;opacity:0.03;pointer-events:none;filter:brightness(0) invert(1);">🛡️</div>
+
+
+
+
+
+
+<!-- V -->
+
+---
+layout: center
+class: text-center
+---
+
+<style scoped>
+.slidev-layout {
+  background-color: #1a1a2e;
+  background-image: radial-gradient(rgba(255,255,255,0.05) 2px, transparent 2px);
+  background-size: 48px 48px;
+}
+</style>
+
+# When Multi-Threading Goes Wrong
+
+<div style="position:absolute;right:0%;bottom:-10%;font-size:450px !important;line-height:1 !important;opacity:0.03;pointer-events:none;filter:brightness(0.1) invert(1);">📦</div>
+
+
+
+
+
+
+<!-- VI -->
+
+---
+layout: center
+class: text-center
+---
+
+<style scoped>
+.slidev-layout {
+  background-color: #1a1a2e;
+  background-image: radial-gradient(rgba(255,255,255,0.05) 2px, transparent 2px);
+  background-size: 48px 48px;
+}
+</style>
+
+# Bridging GIL and Free-Threaded Environments
+
+<div style="position:absolute;right:0%;bottom:-10%;font-size:450px !important;line-height:1 !important;opacity:0.03;pointer-events:none;filter:brightness(0.1) invert(1);">📦</div>
 
 
 
