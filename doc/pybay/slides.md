@@ -584,6 +584,63 @@ class: text-center
 <div style="position:absolute;right:0%;bottom:-10%;font-size:450px !important;line-height:1 !important;opacity:0.03;pointer-events:none;filter:brightness(0.1) invert(1);">📦</div>
 
 
+---
+class: history
+---
+
+# Assumptions of Free Threading May not Hold
+
+<v-clicks depth=2>
+
+- The GIL can be enabled
+- Your code might run under python3.14 instead of 3.14t
+- Could lead to serious performance degregation
+
+</v-clicks>
+
+
+---
+class: history
+---
+
+# Dynamic Threading Engagement
+
+<v-clicks depth=2>
+
+- Check the GIL state before threading
+  - Using `sys._is_gil_enabled()`
+  - Using `conditional-futures` and `ConditionalThreadPoolExecutor`
+
+</v-clicks>
+
+
+
+---
+class: history
+---
+
+# `sys._is_gil_enabled()`
+
+<v-clicks depth=2>
+
+- Check the GIL state before threading
+
+</v-clicks>
+
+
+
+---
+class: history
+---
+
+# `ConditionalThreadPoolExecutor`
+
+<v-clicks depth=2>
+
+- Check the GIL state before threading in a Context Manager
+
+</v-clicks>
+
 
 
 
