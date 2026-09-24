@@ -1,0 +1,60 @@
+*:not(pre):not(code):not(pre *) {
+  font-family: 'Inter', sans-serif !important;
+}
+
+.slidev-layout h1,
+.slidev-layout h2,
+.slidev-layout h3,
+.slidev-layout h4 {
+  color: #dddddd !important;
+}
+
+/* Section accent colors for h1 */
+.slidev-layout.attack h1   { color: #c4903a !important; }
+.slidev-layout.malware h1  { color: #c45a5a !important; }
+.slidev-layout.history h1  { color: #7a8fc4 !important; }
+.slidev-layout.mitigation h1 { color: #4a9c8e !important; }
+
+.cover h1 {
+  font-size: 2.2em !important;
+  line-height: 1.2 !important;
+}
+
+.cover p {
+  font-size: 1.6em !important;
+  line-height: 1.1 !important;
+}
+
+.slidev-layout p,
+.slidev-layout li,
+.slidev-layout div {
+  color: #aaaaaa !important;
+  font-size: 1.4em !important;
+  line-height: 1.6 !important;
+}
+
+.slidev-layout li li,
+.slidev-layout li div {
+  font-size: 1em !important;
+}
+
+.slidev-layout pre,
+.slidev-layout code {
+  font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace !important;
+  font-size: 0.9em !important;
+  line-height: 1.4 !important;
+}
+
+/* Quote slide typography */
+.slidev-layout.quote h1 {
+  font-style: italic !important;
+  font-size: 1.6em !important;
+  color: #eeeeee !important;
+  line-height: 1.3 !important;
+}
+
+.slidev-layout.quote p {
+  font-size: 1.0em !important;
+  color: #666688 !important;
+  margin-top: 1.5em !important;
+}

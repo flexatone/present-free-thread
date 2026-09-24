@@ -1,0 +1,139 @@
+
+
+==
+
+# Getting Started with Free-Threaded Python Using NumPy
+
+
+
+## Description (500 chars)
+
+
+This talk will get you started with multi-threaded data processing in free-threaded Python. You will learn how to install the right Python binary, understand the requirements of using free-threaded-compatible wheels, and see concise examples of multi-threaded processing using `ThreadPoolExecutor`. Working with 2D NumPy arrays, we will see what kinds of processing tasks benefit the most from free-threaded execution and how, in some cases, we can process row data twice as fast (or better).
+
+
+## What will attendess learn
+
+How to install or build a free-threaded Python 3.14t binary, and the importance of using free-threaded-compatible wheels.
+
+How to use `ThreadPoolExecutor` to apply functions across rows of 2D NumPy arrays, collecting results into 1D arrays, 2D arrays, or arbitrary Python objects.
+
+Why immutable arrays (via `flags.writeable`) are a powerful tool for safe multi-threaded processing, and how in-place mutation invites data races.
+
+Understanding which kinds workloads benefit most from free-threading and how multi-threading might still degrade performance.
+
+How to write multi-threaded code that performs well in both free-threaded and GIL-enabled Python.
+
+The current state of free-threaded Python adoption and what to consider before adopting it in your own projects.
+
+
+
+
+For decades, Python has had few good options for running "embarrassingly parallel" operations in parallel. For example, given a 2D NumPy array, parallel processing of row data is an obvious opportunity. In the past, this meant either spawning multiple processes with substantial overhead, or spawning threads that, with GIL contention, might actually degrade performance. NumPy is fast, but with free-threaded Python (3.14t) we can now go even faster: function application to NumPy array rows can be done in half the time (or better) using threads that permit true CPU concurrency.
+
+This talk will get you started with multi-threaded data processing in free-threaded Python. You will learn how to install or build the right Python binary, understand the requirements of using free-threaded-compatible wheels (and avoid accidentally re-enabling the GIL), and see concise examples of multi-threaded processing using `ThreadPoolExecutor`. Working with NumPy arrays, we will see what kinds of processing tasks benefit the most from free-threaded execution. Comprehensive performance tests, across various two-dimensional shapes and worker counts, will be presented.
+
+We will also examine how multi-threading can go wrong, including cases where, even in free-threaded Python, performance can be significantly degraded or how, with in-place mutation, data races can lead to unpredictable outcomes.
+
+There is a catch: bridging Python environments is challenging. The same multi-threaded code that delivers speedups with Python 3.14t (GIL disabled) can perform much worse than single-threaded code on Python 3.14 (GIL enabled). Approaches to writing optimal code for both contexts will be discussed, including branching with `sys._is_gil_enabled()` and using `conditional-futures`, a drop-in `ThreadPoolExecutor` replacement that automatically falls back to single-threaded performance when the GIL is enabled.
+
+
+
+
+
+Notes:
+
+
+I have over a decade of experience maintaining DataFrame libraries and conducting systematic performance testing of array and DataFrame operations.
+
+For this talk, I have already implemented and benchmarked multi-threaded array and DataFrame processing across Python 3.14 and 3.14t, testing various array shapes, dtypes, worker counts, and operation types. I have built comprehensive performance panels that clearly demonstrate when free-threading provides benefits and when it does not.
+
+I regularly present technical content and have developed visualization techniques that make performance trade-offs immediately clear to audiences with varying technical backgrounds.
+
+
+
+I. Introduction (3 min)
+― Embarrassingly Parallel array processing
+― ― Common applications of row-wise calculations
+― Embarrassingly slow performance
+― ― Multi-threaded performance degradation
+― ― Multi-processing overhead
+― Free-threading and disabling the GIL
+― The quickest path to improved Python performance
+
+II. Running Free-Threaded Python (3 min)
+― Installing & Building
+― ― Two different binaries
+― ― Compiling python3.14t with `--disable-gil`
+― Compatible Wheels
+― ― `Py_GIL_DISABLED`
+― ― `PyUnstable_Module_SetGIL()`
+― ― Thread safety
+― ― A new ABI tag: `cp314t`
+― GIL re-enablement
+― ― Loading non-free-threaded extensions
+― ― `PYTHON_GIL=1`, `-X gil=1`
+
+III. Using `ThreadPoolExecutor` with Immutable NumPy Arrays (6 min)
+― Many Python interfaces for running threads
+― ― Low-level `Thread` objects
+― ― Concurrent futures `ThreadPoolExecutor`
+― Avoiding data races with immutable arrays
+― ― Using `flags.writeable`
+― ― The benefits of immutability in multi-threading
+― Using `ThreadPoolExecutor` with 2D arrays
+― ― Processing rows into a 1D array
+― ―    `ThreadPoolExecutor.map()` and `numpy.from_iter()`
+― ― Processing rows into a 2D array
+― ― Processing rows into other PyObjects
+― Configuring worker counts
+― ― How too many threads degrades performance
+
+IV. Array processing Performance panels (3 min)
+― Pure NumPy operations
+― Operations with intermediary PyObjects
+― Tall versus wide shape variations
+― Worker- (thread-) count configuration
+
+V. When Multi-Threading Goes Wrong (3 min)
+― Where multi-threading still degrades performance
+― ― Datasets that are too small
+― Data races
+― ― Indeterminacy of thread execution
+― ― Dangers of in-place mutation
+
+VI. Bridging GIL and Free-Threaded Environments (4 min)
+― Using the same multi-threaded code with and without the GIL
+― ― Very few cases perform well both with and without the GIL
+― ― Worse-than serial performance with GIL is common
+― Checking the GIL state
+― ― Must check GIL state before every multi-threaded initialization
+― ― Using `sys._is_gil_enabled()`
+― Using `conditional-futures` and `ConditionalThreadPoolExecutor`
+
+VII. Conclusion (3 min)
+― Free-threading is no-longer experimental
+― Growing package support
+― ― PyPI classifier: "Programming Language :: Python :: Free Threading"
+― ― Tracking top 360: https://hugovk.github.io/free-threaded-wheels/
+― Adoption considerations
+
+
+
+
+
+I have presented at numerous national and international conferences in many domains over the last twenty years, and taught as a university professor of music technology for six years, frequently teaching technical topics. In recent years I have presented at PyCon USA, SciPy, PyBeach, PyTexas, and PyData.
+
+
+Examples of recent presentations:
+
+
+PyCon US 2023: "Building NumPy Arrays from CSV Files, Faster than Pandas": https://youtu.be/ppPXPVV4rDc?si
+
+SciPy 2023 "Out-Performing NumPy is Hard: When and How to Try with Your Own C-Extensions": https://youtu.be/i4IqWD1zBuo?si
+
+PyCon US 2025: "Elastic Generics: Flexible Static Typing with TypeVarTuple and Unpack": https://youtu.be/fmczXlnQ3cs
+
+PyBeach 2025: "The Paradox of Statically Typed Python and Polymorphic C": https://youtu.be/ycY5WyEWMbE?si
+
+
