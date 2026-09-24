@@ -576,19 +576,6 @@ class: history
 
 
 
----
-class: history
----
-
-# Threading Overhead Can Degrade Performance
-
-<v-clicks depth=2>
-
-- Very small units of work
-- Too many threads
-
-</v-clicks>
-
 
 
 ---
@@ -599,8 +586,11 @@ class: history
 
 <v-clicks depth=2>
 
-- Thread execution indeterminacy
-- In-place mutation
+- Thread indeterminacy with in-place mutation
+- Favor immutable data structures
+    - `tuple`
+    - `np.ndarray.flags.writeable`
+    - `frozendict`
 
 </v-clicks>
 
