@@ -561,6 +561,48 @@ class: text-center
 
 
 
+---
+class: history
+---
+
+# Threading Overhead Can Degrade Performance
+
+<v-clicks depth=2>
+
+- Very small units of work
+- Too many threads
+
+</v-clicks>
+
+
+
+---
+class: history
+---
+
+# Threading Overhead Can Degrade Performance
+
+<v-clicks depth=2>
+
+- Very small units of work
+- Too many threads
+
+</v-clicks>
+
+
+
+---
+class: history
+---
+
+# Data Races
+
+<v-clicks depth=2>
+
+- Thread execution indeterminacy
+- In-place mutation
+
+</v-clicks>
 
 
 
@@ -592,9 +634,9 @@ class: history
 
 <v-clicks depth=2>
 
-- The GIL can be enabled
+- The GIL can be enabled at anytime!
 - Your code might run under python3.14 instead of 3.14t
-- Could lead to serious performance degregation
+- Threads with the GIL can lead to serious performance degradation
 
 </v-clicks>
 
@@ -608,8 +650,8 @@ class: history
 <v-clicks depth=2>
 
 - Check the GIL state before threading
-  - Using `sys._is_gil_enabled()`
-  - Using `conditional-futures` and `ConditionalThreadPoolExecutor`
+- `sys._is_gil_enabled()`
+- `conditional-futures`: `ConditionalThreadPoolExecutor`
 
 </v-clicks>
 
@@ -621,11 +663,17 @@ class: history
 
 # `sys._is_gil_enabled()`
 
-<v-clicks depth=2>
+```python
+array = np.arange(100_000_000).reshape(10_000, 10_000)
+def f(row): (row[row % 2 == 0]**2).sum()
 
-- Check the GIL state before threading
+if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled():
+    with ThreadPoolExecutor() as ex:
+        x = np.fromiter(ex.map(f, array), dtype=float, count=array.shape[0])
+else:
+    x = np.fromiter((f(row) for row in array), dtype=float, count=array.shape[0])
+```
 
-</v-clicks>
 
 
 
@@ -635,11 +683,22 @@ class: history
 
 # `ConditionalThreadPoolExecutor`
 
-<v-clicks depth=2>
+- `pip install conditional_futures`
+- An `Executor` subclass
+- If GIL is active, falls-back on single threaded processing
 
-- Check the GIL state before threading in a Context Manager
+```python
 
-</v-clicks>
+from conditional_futures import ConditionalThreadPoolExecutor
+
+array = np.arange(100_000_000).reshape(10_000, 10_000)
+def f(row): (row[row % 2 == 0]**2).sum()
+
+with ConditionalThreadPoolExecutor() as ex:
+    x = np.fromiter(ex.map(f, array), dtype=float, count=array.shape[0])
+```
+
+
 
 
 
