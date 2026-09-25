@@ -33,7 +33,7 @@ We have all heard this said many times
 For many of us who have used Python for decades, you cannot help but bristle a little bit
 Yes, some operations are slow, but we get have such readability and flexability
 Yes, numerical ops are also slow but we have access to excellent C-libraries like NumPy and Arrow
-But when aspect of Python performance remained hard to justify: no true CPU concurrency
+But one aspect of Python performance remained hard to justify: no true CPU concurrency
 And frankly, it was embarrassing!
 -->
 
@@ -48,10 +48,11 @@ class: history
 
 <v-clicks depth=2>
 
-- Embarrassing because no dependencies between tasks
-- Independent processing on collections of data
+- Concurrency is not always easy
+- Embarrassing because no dependencies between sub-tasks
+- Isolated processing on partitions of data
     - Applying the same function to numerous files or images
-    - Processing numerous simulations scenarios
+    - Processing numerous simulation scenarios
     - Processing records from a DB query
     - Processing rows or columns from an array
 
@@ -83,7 +84,7 @@ class: history
 class: history
 ---
 
-# GIL-Bound Threading
+# GIL-Bound Threading: Python 3.14
 
 ```python {1-6|8-9|11-12}
 >>> from concurrent.futures import ThreadPoolExecutor
@@ -104,7 +105,7 @@ class: history
 class: history
 ---
 
-# Free-Threading
+# Free-Threading: Python 3.14t
 
 ```python {1-6|8-9|11-12}
 >>> from concurrent.futures import ThreadPoolExecutor
@@ -121,20 +122,16 @@ class: history
 71 ms ± 682 μs per loop (mean ± std. dev. of 7 runs, 10 loops each)
 ```
 
-
-
-
-
 ---
 class: history
 ---
 
-# The GIL
+# The Global Interpreter Lock
 
 <v-clicks depth=2>
 
 - The GIL ensured no data races
-- Only one thread could execute bytecode at time
+- Only one thread could execute bytecode at a time
 - Over a decade of work to remove the GIL has succeeded
 - "No GIL" is "free-threaded"
 
@@ -151,11 +148,13 @@ class: history
 <v-clicks depth=2>
 
 - Thread-safe reference counting
-    - Per-thread, deferred, biased ref counts
+    - Biased: `ob_ref_local`, `ob_ref_shared`
+    - Per-thread thread-based storage
+    - Deferred
     - Immortal objects
+    - Stop-the-world GC
 - Built-in locking in containers
 - A new memory allocator (mimalloc)
-- Garbage collection synchronization
 
 </v-clicks>
 
@@ -173,7 +172,7 @@ class: text-center quote
 }
 </style>
 
-# Free-threading is the greatest enhancement to Python performance
+# Free-threading may be the greatest enhancement to Python performance
 
 
 
@@ -189,7 +188,7 @@ class: history
 
 - Lots of CPU-bound processing
 - Lots of column or row wise calculations
-- Multiprocessing overhead would overwhelm concurrency benefits
+- Multiprocessing overhead overwhelmed concurrency benefits
 
 </v-clicks>
 
@@ -201,7 +200,7 @@ class: history
 
 <v-clicks depth=2>
 
-- Free-threading offers the quickest path to material better performance
+- Free-threading offers the quickest path to better performance
 - Easy to use
 
 </v-clicks>
@@ -215,7 +214,7 @@ class: history
 
 <v-clicks depth=2>
 
-- Example of processing NumPy 2D arrays generalize
+- Processing NumPy 2D arrays generalizes to other domains
 - NumPy is already fast and (sometimes) GIL-free
 - Faster NumPy processing is extraordinary
 
@@ -295,8 +294,8 @@ class: history
 <v-clicks depth=2>
 
 - Binary wheels must be specially built
-- Native Python package / wheel are always compatible
 - Importing non-compatible wheels will re-enable the GIL
+- Native Python package / wheel are always compatible
 
 </v-clicks>
 
@@ -310,7 +309,7 @@ class: history
 
 <v-clicks depth=2>
 
-- `Py_GIL_DISABLED`: constant for discovery runtime type
+- `Py_GIL_DISABLED`: constant for discovery of runtime type
 - `PyUnstable_Module_SetGIL()`: register no-GIL support
 ```c
 PyMODINIT_FUNC
@@ -393,8 +392,8 @@ class: mitigation
 
 - Context manager for multi-threaded processing
 - Configurable worker counts
-- More threads can degrade performance
 - Executor `map()` processes one function with many args
+- Executor `submit()` creates futures
 
 </v-clicks>
 
@@ -483,9 +482,9 @@ class: mitigation
 
 <v-clicks depth=2>
 
-- `ThreadPoolExecutor.map()` of 1D arrays
+- `ThreadPoolExecutor.map()` of 1D array rows
 - `numpy.from_iter()` to build 1D array
-- Processing rows into a 2D array
+- Processing rows into a 1D array
 - Processing rows into other PyObjects
 
 </v-clicks>
@@ -499,7 +498,7 @@ class: mitigation
 
 <v-clicks depth=2>
 
-- More threads can do more work per wall time
+- More threads can do more work
 - More threads incur overhead
 - `max_workers` parameter
     - Default: `max_workers=min(32, (os.process_cpu_count() or 1) + 4)`
@@ -573,8 +572,6 @@ class: history
 - Too many threads
 
 </v-clicks>
-
-
 
 
 
