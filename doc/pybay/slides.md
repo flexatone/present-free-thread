@@ -50,7 +50,7 @@ class: history
 
 - Concurrency is not always easy
 - Easy concurrency is embarrassing: no dependencies
-- Isolated processing on partitions of data
+- Processing isolated data partitions
     - Applying the same function to numerous files or images
     - Processing numerous simulation scenarios
     - Processing records from a DB query
@@ -130,9 +130,9 @@ class: history
 
 <v-clicks depth=2>
 
-- The GIL ensured no data races
-- Only one thread could execute bytecode at a time
-- Over a decade of work to remove the GIL has succeeded
+- The GIL ensures no data races
+- Only one thread can execute bytecode at a time
+- Over a decade of work to remove the GIL
 - "No GIL" is "free-threaded"
 
 </v-clicks>
@@ -159,7 +159,6 @@ class: history
 </v-clicks>
 
 
-
 ---
 layout: center
 class: text-center quote
@@ -176,8 +175,6 @@ class: text-center quote
 
 
 
-
-
 ---
 class: history
 ---
@@ -187,7 +184,7 @@ class: history
 <v-clicks depth=2>
 
 - Lots of CPU-bound processing
-- Lots of column or row wise calculations
+- Lots of embarrassingly parallel row-wise calculations
 - Multiprocessing overhead overwhelmed concurrency benefits
 
 </v-clicks>
@@ -201,7 +198,7 @@ class: history
 <v-clicks depth=2>
 
 - Free-threading offers the quickest path to better performance
-- Easy to use
+- Easy to use with standard-library tools
 
 </v-clicks>
 
@@ -253,7 +250,8 @@ class: history
 
 <v-clicks depth=2>
 
-- Two different binaries available
+- Two different binaries: `python3.14` and `python3.14t`
+- Distributors
     - Python.org
     - homebrew: `brew install python-freethreading`
     - apt:
@@ -262,7 +260,7 @@ class: history
         sudo apt update
         sudo apt install python3.14-nogil
         ```
-- Compiling Python with `--disable-gil`
+- Compiling: `--disable-gil`
 
 </v-clicks>
 
@@ -275,13 +273,80 @@ class: history
 
 <v-clicks depth=2>
 
-- `python3.14t`
+- A `python3.14t` build has `python3.14` and `python3.14t` binaries
+- Virtual environments will will have only `python3.14` and `python`
+- Interactive announces
+```bash
+$ py_src_3.14.0t/bin/python3.14
+Python 3.14.0 free-threading build (main, Oct  8 2025, 09:33:34) [GCC 13.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+
+$ py_src_3.14.0t/bin/python3.14t
+Python 3.14.0 free-threading build (main, Oct  8 2025, 09:33:34) [GCC 13.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+```
+</v-clicks>
+
+
+---
+class: history
+---
+
+# Discovery
+
+<v-clicks depth=2>
+
+- Neither binary name nor version tells you it is free-threaded
+```bash
+$ python --version
+Python 3.14.0
+```
+- Two approaches to discovery:
+```bash
+$ python -VV
+Python 3.14.0 free-threading build (main, Oct  8 2025, 09:33:34) [GCC 13.3.0]
+
+$ strings ~/.env314t/bin/python | grep -i 'free-threading build'
+%.80s free-threading build (%.80s) %.80s
+```
+
+</v-clicks>
+
+
+---
+class: history
+---
+
+# The GIL Is Now a Zombie
+
+<v-clicks depth=2>
+
 - The GIL is disabled, not removed
 - Reenabling the GIL
     - `PYTHON_GIL=1` environment variable
     - `-X gil=1` flag at launch
 
 </v-clicks>
+
+
+
+
+---
+class: history
+---
+
+# Running
+
+<v-clicks depth=2>
+
+- A `python3.14t` build has `python`
+- The GIL is disabled, not removed
+- Reenabling the GIL
+    - `PYTHON_GIL=1` environment variable
+    - `-X gil=1` flag at launch
+
+</v-clicks>
+
 
 
 
@@ -639,12 +704,79 @@ class: history
 <v-clicks depth=2>
 
 - Thread indeterminacy with in-place mutation
-- Favor immutable data structures
+- Defend with immutable data structures
     - `tuple`
     - `np.ndarray.flags.writeable`
-    - `frozendict`
+    - `frozendict` (3.15!)
 
 </v-clicks>
+
+
+---
+class: history
+---
+
+# Data Races: In-Place Summation
+
+```python
+data = [0]
+def increment(_):
+    for _ in range(100_000):
+        data[0] += 1  # read, add, write: not atomic
+
+with ThreadPoolExecutor(max_workers=8) as executor:
+    executor.map(increment, range(8))
+
+print(f"Expected: {800_000:,}, Found: {data[0]:,}")
+```
+
+```bash
+$ ~/.env314/bin/python ex.py
+Expected: 800,000, Found: 800,000
+
+$ ~/.env314t/bin/python ex.py
+Expected: 800,000, Found: 209,515
+
+$ ~/.env314t/bin/python ex.py
+Expected: 800,000, Found: 207,052
+```
+
+
+
+---
+class: history
+---
+
+# Data Races: In-Place Convolution
+
+```python
+rng = np.random.default_rng(0)
+signal = rng.random(1_000_000)
+kernel = rng.random(10)
+chunk = 100
+out = np.zeros(len(signal) + len(kernel) - 1)
+
+def process(start):
+    result = np.convolve(signal[start:start + chunk], kernel)
+    out[start:start + len(result)] += result
+
+with ThreadPoolExecutor(max_workers=8) as executor:
+    executor.map(process, range(0, len(signal), chunk))
+
+expected = np.convolve(signal, kernel)
+print(f"Mismatched elements: {(~np.isclose(out, expected)).sum():,} of {len(out):,}")
+```
+
+```bash
+$ ~/.env314/bin/python ex.py
+Mismatched elements: 0 of 1,000,009
+
+$ ~/.env314t/bin/python ex.py
+Mismatched elements: 1,970 of 1,000,009
+
+$ ~/.env314t/bin/python ex.py
+Mismatched elements: 1,989 of 1,000,009
+```
 
 
 
