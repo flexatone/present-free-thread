@@ -33,24 +33,25 @@ class FTTest:
 
 
 
+
+from collections import Counter
+def proc(row):
+    return  max(Counter(row.tolist()).values())
+
+PROC_DESCRIPTION = 'max(Counter(row.tolist()).values())'
+
+
 # def proc(row): # ess: even squared sum
 #     return (row[row % 2 == 0] ** 2).sum()
 
 # PROC_DESCRIPTION = '(row[row % 2 == 0]**2).sum()'
 
 
-# from collections import Counter
+
 # def proc(row):
-#     return  max(Counter(row.tolist()).values())
+#     return row.sum()
 
-# PROC_DESCRIPTION = 'max(Counter(row.tolist()).values())'
-
-
-def proc(row):
-    return row.sum()
-
-PROC_DESCRIPTION = 'sum()'
-
+# PROC_DESCRIPTION = 'sum()'
 
 
 # def proc(row):
@@ -65,34 +66,6 @@ PROC_DESCRIPTION = 'sum()'
 class ArrayMap_Single(FTTest):
     def __call__(self):
         _ = np.fromiter((proc(row) for row in self.npa), dtype=float, count=self.npa.shape[0])
-
-
-# class ArrayMap_Process_Workers2(FTTest):
-#     def __call__(self):
-#         _ = self.npa.iter_series(axis=1).apply_pool(proc,
-#                 chunksize=10, use_threads=False, max_workers=2)
-
-
-# class ArrayMap_Process_Workers4(FTTest):
-#     def __call__(self):
-#         _ = self.npa.iter_series(axis=1).apply_pool(proc,
-#                 chunksize=10, use_threads=False, max_workers=4)
-
-
-# class ArrayMap_Process_Workers8(FTTest):
-#     def __call__(self):
-#         _ = self.npa.iter_series(axis=1).apply_pool(proc,
-#                 chunksize=10, use_threads=False, max_workers=8)
-
-
-# class ArrayMap_Process_Workers16(FTTest):
-#     def __call__(self):
-#         _ = self.npa.iter_series(axis=1).apply_pool(proc,
-#                 chunksize=10, use_threads=False, max_workers=16)
-
-
-
-
 
 class ArrayMap_Threads_Workers2(FTTest):
     def __call__(self):
@@ -116,11 +89,6 @@ class ArrayMap_Threads_Workers16(FTTest):
     def __call__(self):
         with ThreadPoolExecutor(max_workers=16) as ex:
             _ = np.fromiter(ex.map(proc, self.npa), dtype=float, count=self.npa.shape[0])
-
-
-
-
-
 
 
 #-------------------------------------------------------------------------------
@@ -175,6 +143,9 @@ def plot_performance(frame: sf.Frame,
     name_total = len(frame['name'].unique())
 
     fig, axes = plt.subplots(cat_total, fixture_total)
+    bg_color = '#a39d93' # warm mid grey, to sit well on dark slides
+    legend_color = '#bbb5ab' # lighter variant of bg_color
+    fig.patch.set_facecolor(bg_color)
 
     # for legend
     name_replace = {
@@ -204,6 +175,7 @@ def plot_performance(frame: sf.Frame,
         for fixture_count, (fixture_label, fixture) in enumerate(
                 cat.iter_group_items('fixture')):
             ax = axes[cat_count][fixture_count]
+            ax.set_facecolor(bg_color)
 
             # set order
             fixture = fixture.sort_values('name', key=lambda s:s.iter_element().map_all(name_order))
@@ -244,7 +216,8 @@ def plot_performance(frame: sf.Frame,
                     )
 
     fig.set_size_inches(5.5, 3.5) # width, height
-    fig.legend(post, names_display, loc='center right', fontsize=6)
+    fig.legend(post, names_display, loc='center right', fontsize=6,
+            facecolor=legend_color, framealpha=1)
     # horizontal, vertical
     count = ff.parse(FF_tall_bool).size
 
@@ -272,7 +245,7 @@ def plot_performance(frame: sf.Frame,
             hspace=1,
             )
     # plt.rcParams.update({'font.size': 22})
-    plt.savefig(fp, dpi=600)
+    plt.savefig(fp, dpi=600, facecolor=bg_color)
 
     if sys.platform.startswith('linux'):
         os.system(f'eog {fp}&')
