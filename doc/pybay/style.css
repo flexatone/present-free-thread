@@ -58,3 +58,12 @@
   color: #666688 !important;
   margin-top: 1.5em !important;
 }
+
+/* Full-width plot image below the slide title */
+.slidev-layout img.plot {
+  display: block;
+  max-height: 445px;
+  max-width: 100%;
+  margin: 0 auto;
+  border-radius: 4px;
+}

@@ -32,10 +32,26 @@ class FTTest:
         raise NotImplementedError()
 
 
+
 # def proc(row): # ess: even squared sum
 #     return (row[row % 2 == 0] ** 2).sum()
 
 # PROC_DESCRIPTION = '(row[row % 2 == 0]**2).sum()'
+
+
+# from collections import Counter
+# def proc(row):
+#     return  max(Counter(row.tolist()).values())
+
+# PROC_DESCRIPTION = 'max(Counter(row.tolist()).values())'
+
+
+def proc(row):
+    return row.sum()
+
+PROC_DESCRIPTION = 'sum()'
+
+
 
 # def proc(row):
 #     p = row / row.sum()
@@ -43,10 +59,6 @@ class FTTest:
 
 # PROC_DESCRIPTION = 'Shannon Entropy'
 
-def proc(row): # ess: even squared sum
-    return row.sum()
-
-PROC_DESCRIPTION = 'sum()'
 
 
 
@@ -272,7 +284,7 @@ def plot_performance(frame: sf.Frame,
 
 def get_versions() -> str:
     import platform
-    py_version = sys.version[:sys.version.find('(')].strip()
+    py_version = platform.python_version()
     return f'OS: {platform.system()} / Python: {py_version} / NumPy: {np.__version__}'
 
 FIXTURE_SHAPE_MAP = {

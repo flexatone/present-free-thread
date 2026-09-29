@@ -536,6 +536,56 @@ class: text-center
 
 
 
+---
+class: mitigation
+---
+
+# One Fixture is Not Enough
+
+<v-clicks depth=2>
+
+- Performance evaluation must consider shape
+- Shape categories
+    - Tall: many smaller rows
+    - Square: row size and count equal
+    - Wide: fewer larger rows
+- Row-processing performance
+    - Tall: more smaller units of work
+    - Wide: fewer larger units of work
+
+</v-clicks>
+
+
+
+
+---
+class: mitigation
+---
+
+# Per-row `max(Counter())`
+
+<img class="plot" src="/images/ft-np-perf-counter-1e8.png" />
+
+
+
+---
+class: mitigation
+---
+
+# Per-row even square sum
+
+<img class="plot" src="/images/ft-np-perf-ess-1e8.png" />
+
+
+
+---
+class: mitigation
+---
+
+# Per-row `sum()`
+
+<img class="plot" src="/images/ft-np-perf-sum-1e8.png" />
+
 
 
 
@@ -691,13 +741,13 @@ with ConditionalThreadPoolExecutor() as ex:
 
 ---
 
-# How to Talk to Your Agents about Concurrency
+# Talk to Your Agents about Concurrency
 
 <v-clicks depth=2>
 
 - My agents often implement serial first
 - `python`:
-    - I/O bound processes not even requriring ft-python
+    - Obvious I/O bound processes
     - When identified, easily refactored
 - `rust`:
     - Trivial CPU-bound loop to parallel iterator with `rayon`
@@ -715,10 +765,11 @@ with ConditionalThreadPoolExecutor() as ex:
 
 <v-clicks depth=2>
 
+- Multi-threading arrays: a pathological case
 - Free-threading is no-longer experimental
 - Growing package support
-    ― PyPI classifier: "Programming Language :: Python :: Free Threading"
-    ― Tracking top 360: https://hugovk.github.io/free-threaded-wheels/
+    - PyPI classifier: "Programming Language :: Python :: Free Threading"
+    - Tracking top 360: https://hugovk.github.io/free-threaded-wheels/
 - Adoption can be difficult
 
 </v-clicks>
