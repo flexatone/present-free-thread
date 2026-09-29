@@ -32,16 +32,22 @@ class FTTest:
         raise NotImplementedError()
 
 
-def proc(row): # ess: even squared sum
-    return (row[row % 2 == 0] ** 2).sum()
+# def proc(row): # ess: even squared sum
+#     return (row[row % 2 == 0] ** 2).sum()
 
-PROC_DESCRIPTION = '(row[row % 2 == 0]**2).sum()'
+# PROC_DESCRIPTION = '(row[row % 2 == 0]**2).sum()'
 
 # def proc(row):
 #     p = row / row.sum()
 #     return -(p * np.log(p + 1e-12)).sum()
 
 # PROC_DESCRIPTION = 'Shannon Entropy'
+
+def proc(row): # ess: even squared sum
+    return row.sum()
+
+PROC_DESCRIPTION = 'sum()'
+
 
 
 class ArrayMap_Single(FTTest):
@@ -109,7 +115,7 @@ class ArrayMap_Threads_Workers16(FTTest):
 NUMBER = 4
 
 def scale(v):
-    return int(v * 10)
+    return int(v * 100)
 
 
 FF_wide_bool = f's({scale(100)},{scale(10_000)})|v(bool)'

@@ -689,6 +689,24 @@ with ConditionalThreadPoolExecutor() as ex:
 
 
 
+---
+
+# How to Talk to Your Agents about Concurrency
+
+<v-clicks depth=2>
+
+- My agents often implement serial first
+- `python`:
+    - I/O bound processes not even requriring ft-python
+    - When identified, easily refactored
+- `rust`:
+    - Trivial CPU-bound loop to parallel iterator with `rayon`
+- Agents can rapidly do performance tests of alternate designs and fixtures
+
+
+</v-clicks>
+
+
 
 
 ---
