@@ -212,6 +212,7 @@ class: history
 <v-clicks depth=2>
 
 - Processing NumPy 2D arrays generalizes to other domains
+- NumPy early to offer free-threaded wheels
 - NumPy is already fast and (sometimes) GIL-free
 - Faster NumPy processing is extraordinary
 
@@ -532,6 +533,7 @@ class: mitigation
 <v-clicks depth=2>
 
 - Many NumPy processes are already no-GIL
+- A high bar
 - NumPy arrays can be made immutable
     - `flags.writeable`
 - Immutability makes data races impossible
@@ -726,9 +728,16 @@ def increment(_):
 
 with ThreadPoolExecutor(max_workers=8) as executor:
     executor.map(increment, range(8))
-
 print(f"Expected: {800_000:,}, Found: {data[0]:,}")
 ```
+
+
+
+---
+class: history
+---
+
+# Data Races: In-Place Summation
 
 ```bash
 $ ~/.env314/bin/python ex.py
@@ -751,8 +760,7 @@ class: history
 
 ```python
 rng = np.random.default_rng(0)
-signal = rng.random(1_000_000)
-kernel = rng.random(10)
+signal, kernel = rng.random(1_000_000), rng.random(10)
 chunk = 100
 out = np.zeros(len(signal) + len(kernel) - 1)
 
@@ -763,9 +771,16 @@ def process(start):
 with ThreadPoolExecutor(max_workers=8) as executor:
     executor.map(process, range(0, len(signal), chunk))
 
-expected = np.convolve(signal, kernel)
-print(f"Mismatched elements: {(~np.isclose(out, expected)).sum():,} of {len(out):,}")
+print(f"Mismatched elements: {(~np.isclose(out, np.convolve(signal, kernel))).sum():,} of {len(out):,}")
 ```
+
+
+
+---
+class: history
+---
+
+# Data Races: In-Place Convolution
 
 ```bash
 $ ~/.env314/bin/python ex.py
