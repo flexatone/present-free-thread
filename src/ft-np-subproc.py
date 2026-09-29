@@ -33,7 +33,7 @@ class FTTest:
 
 
 def proc(row): # ess: even squared sum
-    return s.loc[(s % 2) == 0].sum()
+    return (row[row % 2 == 0] ** 2).sum()
 
 PROC_DESCRIPTION = '(row[row % 2 == 0]**2).sum()'
 
@@ -106,10 +106,10 @@ class ArrayMap_Threads_Workers16(FTTest):
 
 
 #-------------------------------------------------------------------------------
-NUMBER = 1
+NUMBER = 4
 
 def scale(v):
-    return int(v * .1)
+    return int(v * 10)
 
 
 FF_wide_bool = f's({scale(100)},{scale(10_000)})|v(bool)'
@@ -160,16 +160,7 @@ def plot_performance(frame: sf.Frame,
 
     # for legend
     name_replace = {
-        # IterArrayA_Single.__name__: 'iter_array()',
-        # IterArrayA_Threads_Workers4.__name__: 'iter_array(use_threads=True,\nmax_workers=4)',
-        # IterArrayA_Threads_Workers16.__name__: 'iter_array(use_threads=True,\nmax_workers=16)',
         ArrayMap_Single.__name__: 'sequential',
-
-        # ArrayMap_Process_Workers2.__name__: 'iter_series.apply_pool(\nuse_threads=False,\nmax_workers=2)',
-        # ArrayMap_Process_Workers4.__name__: 'iter_series.apply_pool(\nuse_threads=False,\nmax_workers=4)',
-        # ArrayMap_Process_Workers8.__name__: 'iter_series.apply_pool(\nuse_threads=False,\nmax_workers=8)',
-        # ArrayMap_Process_Workers16.__name__: 'iter_series.apply_pool(\nuse_threads=False,\nmax_workers=16)',
-
         ArrayMap_Threads_Workers2.__name__: 'max_workers=2',
         ArrayMap_Threads_Workers4.__name__: 'max_workers=4',
         ArrayMap_Threads_Workers8.__name__: 'max_workers=8',
@@ -177,15 +168,7 @@ def plot_performance(frame: sf.Frame,
     }
 
     name_order = {
-        # IterArrayA_Single.__name__: 0,
-        # IterArrayA_Threads_Workers4.__name__: 1,
-        # IterArrayA_Threads_Workers16.__name__: 2,
         ArrayMap_Single.__name__: 0,
-        # ArrayMap_Process_Workers2.__name__: 1,
-        # ArrayMap_Process_Workers4.__name__: 2,
-        # ArrayMap_Process_Workers8.__name__: 3,
-        # ArrayMap_Process_Workers16.__name__: 4,
-
         ArrayMap_Threads_Workers2.__name__: 11,
         ArrayMap_Threads_Workers4.__name__: 12,
         ArrayMap_Threads_Workers8.__name__: 13,
@@ -310,10 +293,6 @@ def fixture_to_pair(label: str, fixture_name: str) -> tp.Tuple[str, str, str]:
 
 CLS_READ = (
     ArrayMap_Single,
-    # ArrayMap_Process_Workers4,
-    # ArrayMap_Process_Workers8,
-    # ArrayMap_Process_Workers16,
-
     ArrayMap_Threads_Workers2,
     ArrayMap_Threads_Workers4,
     ArrayMap_Threads_Workers8,
@@ -324,8 +303,8 @@ CLS_MAP = {cls.__name__: cls for cls in CLS_READ}
 
 def run_test(subproc: bool = True):
 
-    py_exet = Path.home() / '.env314t-preft/bin/python3'
-    py_exe = Path.home()  / '.env314-preft/bin/python3'
+    py_exet = Path.home() / '.env314t-ft/bin/python3'
+    py_exe = Path.home()  / '.env314-ft/bin/python3'
     entry_fp = Path(__file__).resolve()
     records = []
 
@@ -357,7 +336,11 @@ def run_test(subproc: bool = True):
                     try:
                         proc_result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                         result = float(proc_result.stdout.strip())
-                    except (subprocess.CalledProcessError, ValueError, OSError):
+                    except subprocess.CalledProcessError as e:
+                        print(f'failed: {" ".join(cmd)}\n{e.stderr}', file=sys.stderr)
+                        result = np.nan
+                    except (ValueError, OSError) as e:
+                        print(f'failed: {" ".join(cmd)}: {e!r}', file=sys.stderr)
                         result = np.nan
                 else:
                     runner = cls(fixture)
