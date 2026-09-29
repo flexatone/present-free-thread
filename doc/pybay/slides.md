@@ -317,7 +317,7 @@ $ strings ~/.env314t/bin/python | grep -i 'free-threading build'
 class: history
 ---
 
-# The GIL Is Now Zombie
+# The GIL Is Now a Zombie
 
 <v-clicks depth=2>
 
@@ -649,12 +649,79 @@ class: history
 <v-clicks depth=2>
 
 - Thread indeterminacy with in-place mutation
-- Favor immutable data structures
+- Defend with immutable data structures
     - `tuple`
     - `np.ndarray.flags.writeable`
-    - `frozendict`
+    - `frozendict` (3.15!)
 
 </v-clicks>
+
+
+---
+class: history
+---
+
+# Data Races: In-Place Summation
+
+```python
+data = [0]
+def increment(_):
+    for _ in range(100_000):
+        data[0] += 1  # read, add, write: not atomic
+
+with ThreadPoolExecutor(max_workers=8) as executor:
+    executor.map(increment, range(8))
+
+print(f"Expected: {800_000:,}, Found: {data[0]:,}")
+```
+
+```bash
+$ ~/.env314/bin/python ex.py
+Expected: 800,000, Found: 800,000
+
+$ ~/.env314t/bin/python ex.py
+Expected: 800,000, Found: 209,515
+
+$ ~/.env314t/bin/python ex.py
+Expected: 800,000, Found: 207,052
+```
+
+
+
+---
+class: history
+---
+
+# Data Races: In-Place Convolution
+
+```python
+rng = np.random.default_rng(0)
+signal = rng.random(1_000_000)
+kernel = rng.random(10)
+chunk = 100
+out = np.zeros(len(signal) + len(kernel) - 1)
+
+def process(start):
+    result = np.convolve(signal[start:start + chunk], kernel)
+    out[start:start + len(result)] += result
+
+with ThreadPoolExecutor(max_workers=8) as executor:
+    executor.map(process, range(0, len(signal), chunk))
+
+expected = np.convolve(signal, kernel)
+print(f"Mismatched elements: {(~np.isclose(out, expected)).sum():,} of {len(out):,}")
+```
+
+```bash
+$ ~/.env314/bin/python ex.py
+Mismatched elements: 0 of 1,000,009
+
+$ ~/.env314t/bin/python ex.py
+Mismatched elements: 1,970 of 1,000,009
+
+$ ~/.env314t/bin/python ex.py
+Mismatched elements: 1,989 of 1,000,009
+```
 
 
 
