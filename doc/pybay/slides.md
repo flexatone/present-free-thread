@@ -509,12 +509,6 @@ class: mitigation
 
 
 
-
-
-
-
-
-
 <!-- IV -->
 
 ---
@@ -562,7 +556,7 @@ class: mitigation
 class: mitigation
 ---
 
-# Per-row `max(Counter())`
+# Per-row `max(Counter())` 1e8
 
 <img class="plot" src="/images/ft-np-perf-counter-1e8.png" />
 
@@ -572,7 +566,18 @@ class: mitigation
 class: mitigation
 ---
 
-# Per-row even square sum
+# Per-row `max(Counter())` 1e6
+
+<img class="plot" src="/images/ft-np-perf-counter-1e6.png" />
+
+
+
+
+---
+class: mitigation
+---
+
+# Per-row even square sum 1e8
 
 <img class="plot" src="/images/ft-np-perf-ess-1e8.png" />
 
@@ -582,7 +587,7 @@ class: mitigation
 class: mitigation
 ---
 
-# Per-row `sum()`
+# Per-row `sum()` 1e8
 
 <img class="plot" src="/images/ft-np-perf-sum-1e8.png" />
 
