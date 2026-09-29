@@ -50,7 +50,7 @@ class: history
 
 - Concurrency is not always easy
 - Easy concurrency is embarrassing: no dependencies
-- Isolated processing on partitions of data
+- Processing isolated data partitions
     - Applying the same function to numerous files or images
     - Processing numerous simulation scenarios
     - Processing records from a DB query
@@ -130,9 +130,9 @@ class: history
 
 <v-clicks depth=2>
 
-- The GIL ensured no data races
-- Only one thread could execute bytecode at a time
-- Over a decade of work to remove the GIL has succeeded
+- The GIL ensures no data races
+- Only one thread can execute bytecode at a time
+- Over a decade of work to remove the GIL
 - "No GIL" is "free-threaded"
 
 </v-clicks>
@@ -159,7 +159,6 @@ class: history
 </v-clicks>
 
 
-
 ---
 layout: center
 class: text-center quote
@@ -176,8 +175,6 @@ class: text-center quote
 
 
 
-
-
 ---
 class: history
 ---
@@ -187,7 +184,7 @@ class: history
 <v-clicks depth=2>
 
 - Lots of CPU-bound processing
-- Lots of column or row wise calculations
+- Lots of embarrassingly parallel row-wise calculations
 - Multiprocessing overhead overwhelmed concurrency benefits
 
 </v-clicks>
@@ -201,7 +198,7 @@ class: history
 <v-clicks depth=2>
 
 - Free-threading offers the quickest path to better performance
-- Easy to use
+- Easy to use with standard-library tools
 
 </v-clicks>
 
@@ -253,7 +250,8 @@ class: history
 
 <v-clicks depth=2>
 
-- Two different binaries available
+- Two different binaries: `python3.14` and `python3.14t`
+- Distributors
     - Python.org
     - homebrew: `brew install python-freethreading`
     - apt:
@@ -262,7 +260,7 @@ class: history
         sudo apt update
         sudo apt install python3.14-nogil
         ```
-- Compiling Python with `--disable-gil`
+- Compiling: `--disable-gil`
 
 </v-clicks>
 
@@ -275,13 +273,80 @@ class: history
 
 <v-clicks depth=2>
 
-- `python3.14t`
+- A `python3.14t` build has `python3.14` and `python3.14t` binaries
+- Virtual environments will will have only `python3.14` and `python`
+- Interactive announces
+```bash
+$ py_src_3.14.0t/bin/python3.14
+Python 3.14.0 free-threading build (main, Oct  8 2025, 09:33:34) [GCC 13.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+
+$ py_src_3.14.0t/bin/python3.14t
+Python 3.14.0 free-threading build (main, Oct  8 2025, 09:33:34) [GCC 13.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+```
+</v-clicks>
+
+
+---
+class: history
+---
+
+# Discovery
+
+<v-clicks depth=2>
+
+- Neither binary name nor version tells you it is free-threaded
+```bash
+$ python --version
+Python 3.14.0
+```
+- Two approaches to discovery:
+```bash
+$ python -VV
+Python 3.14.0 free-threading build (main, Oct  8 2025, 09:33:34) [GCC 13.3.0]
+
+$ strings ~/.env314t/bin/python | grep -i 'free-threading build'
+%.80s free-threading build (%.80s) %.80s
+```
+
+</v-clicks>
+
+
+---
+class: history
+---
+
+# The GIL Is Now Zombie
+
+<v-clicks depth=2>
+
 - The GIL is disabled, not removed
 - Reenabling the GIL
     - `PYTHON_GIL=1` environment variable
     - `-X gil=1` flag at launch
 
 </v-clicks>
+
+
+
+
+---
+class: history
+---
+
+# Running
+
+<v-clicks depth=2>
+
+- A `python3.14t` build has `python`
+- The GIL is disabled, not removed
+- Reenabling the GIL
+    - `PYTHON_GIL=1` environment variable
+    - `-X gil=1` flag at launch
+
+</v-clicks>
+
 
 
 
