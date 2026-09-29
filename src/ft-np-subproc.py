@@ -115,7 +115,7 @@ class ArrayMap_Threads_Workers16(FTTest):
 NUMBER = 4
 
 def scale(v):
-    return int(v * 100)
+    return int(v * 10)
 
 
 FF_wide_bool = f's({scale(100)},{scale(10_000)})|v(bool)'
