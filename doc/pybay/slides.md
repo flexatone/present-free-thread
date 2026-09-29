@@ -49,7 +49,7 @@ class: history
 <v-clicks depth=2>
 
 - Concurrency is not always easy
-- Embarrassing because no dependencies between sub-tasks
+- Easy concurrency is embarrassing: no dependencies
 - Isolated processing on partitions of data
     - Applying the same function to numerous files or images
     - Processing numerous simulation scenarios
