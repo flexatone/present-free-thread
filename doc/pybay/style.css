@@ -41,8 +41,8 @@
 .slidev-layout pre,
 .slidev-layout code {
   font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace !important;
-  font-size: 0.9em !important;
-  line-height: 1.4 !important;
+  font-size: 0.85em !important;
+  line-height: 1.3 !important;
 }
 
 /* Quote slide typography */

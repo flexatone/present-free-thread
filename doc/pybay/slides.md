@@ -26,44 +26,22 @@ class: text-center quote
 }
 </style>
 
-# "Python is slow."
+# “Python is slow.”
 
 <!--
 We have all heard this said many times
 For many of us who have used Python for decades, you cannot help but bristle a little bit
 Yes, some operations are slow, but we get have such readability and flexability
 Yes, numerical ops are also slow but we have access to excellent C-libraries like NumPy and Arrow
-But one aspect of Python performance remained hard to justify: no true CPU concurrency
-And frankly, it was embarrassing!
+But one aspect of Python performance remained hard to justify: concurrency
 -->
 
 
-
-
 ---
 class: history
 ---
 
-# Embarrassingly Parallel Operations
-
-<v-clicks depth=2>
-
-- Concurrency is not always easy
-- Easy concurrency is embarrassing: no dependencies
-- Processing isolated data partitions
-    - Applying the same function to numerous files or images
-    - Processing numerous simulation scenarios
-    - Processing records from a DB query
-    - Processing rows or columns from an array
-
-</v-clicks>
-
-
----
-class: history
----
-
-# But Python Has Long Supported Concurrency
+# Python Concurrency: Two Suboptimal Options
 
 <v-clicks depth=2>
 
@@ -84,9 +62,25 @@ class: history
 class: history
 ---
 
+# Python Free Threading
+
+<v-clicks depth=2>
+
+- Python threads are no longer bound by the GIL
+- Python 3.13 (experimental), Python 3.14 (supported)
+
+
+</v-clicks>
+
+
+
+---
+class: history
+---
+
 # GIL-Bound Threading: Python 3.14
 
-```python {1-6|8-9|11-12}
+```python {1-6|8-10|12-}
 >>> from concurrent.futures import ThreadPoolExecutor
 >>> import numpy as np
 
@@ -94,10 +88,12 @@ class: history
 >>> def f(row): (row[row % 2 == 0]**2).sum()
 ...
 
->>> %timeit np.fromiter((f(row) for row in array), dtype=float, count=array.shape[0])
+>>> %timeit np.fromiter((f(row) for row in array), dtype=float,
+count=array.shape[0])
 313 ms ± 4.92 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
->>> %timeit with ThreadPoolExecutor() as ex: np.fromiter(ex.map(f, array), dtype=float, count=array.shape[0])
+>>> %timeit with ThreadPoolExecutor() as ex:
+np.fromiter(ex.map(f, array), dtype=float, count=array.shape[0])
 383 ms ± 12.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 ```
 
@@ -107,7 +103,7 @@ class: history
 
 # Free-Threading: Python 3.14t
 
-```python {1-6|8-9|11-12}
+```python {1-6|8-10|12-}
 >>> from concurrent.futures import ThreadPoolExecutor
 >>> import numpy as np
 
@@ -115,10 +111,12 @@ class: history
 >>> def f(row): (row[row % 2 == 0]**2).sum()
 ...
 
->>> %timeit np.fromiter((f(row) for row in array), dtype=float, count=array.shape[0])
+>>> %timeit np.fromiter((f(row) for row in array), dtype=float,
+count=array.shape[0])
 306 ms ± 2.25 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
->>> %timeit with ThreadPoolExecutor() as ex: np.fromiter(ex.map(f, array), dtype=float, count=array.shape[0])
+>>> %timeit with ThreadPoolExecutor() as ex:
+np.fromiter(ex.map(f, array), dtype=float, count=array.shape[0])
 71 ms ± 682 μs per loop (mean ± std. dev. of 7 runs, 10 loops each)
 ```
 
@@ -130,10 +128,11 @@ class: history
 
 <v-clicks depth=2>
 
-- The GIL ensures no data races
+- A lock on bytecode execution: `pthread_mutex_lock()` (POSIX)
 - Only one thread can execute bytecode at a time
+- Ensures no data races
 - Over a decade of work to remove the GIL
-- "No GIL" is "free-threaded"
+- “No GIL” is “free-threaded”
 
 </v-clicks>
 
@@ -159,6 +158,7 @@ class: history
 </v-clicks>
 
 
+
 ---
 layout: center
 class: text-center quote
@@ -173,6 +173,8 @@ class: text-center quote
 
 # Free-threading may be the greatest enhancement to Python performance
 
+
+<!-- More impactful than JIT and many other recent enhancements  -->
 
 
 ---
@@ -220,7 +222,6 @@ class: history
 
 
 
-
 <!-- II -->
 
 
@@ -254,14 +255,14 @@ class: history
 - Two different binaries: `python3.14` and `python3.14t`
 - Distributors
     - Python.org
-    - homebrew: `brew install python-freethreading`
-    - apt:
+    - MacOS: homebrew: `brew install python-freethreading`
+    - Debian / Ubuntu: `apt`:
         ```bash
         sudo add-apt-repository ppa:deadsnakes/ppa
         sudo apt update
         sudo apt install python3.14-nogil
         ```
-- Compiling: `--disable-gil`
+- Compiling from source: `--disable-gil`
 
 </v-clicks>
 
@@ -274,18 +275,9 @@ class: history
 
 <v-clicks depth=2>
 
-- A `python3.14t` build has `python3.14` and `python3.14t` binaries
-- Virtual environments will will have only `python3.14` and `python`
-- Interactive announces
-```bash
-$ py_src_3.14.0t/bin/python3.14
-Python 3.14.0 free-threading build (main, Oct  8 2025, 09:33:34) [GCC 13.3.0] on linux
-Type "help", "copyright", "credits" or "license" for more information.
+- A free-threading build has `python3.14` and `python3.14t` binaries
+- Virtual environments have only `python3.14` and `python`
 
-$ py_src_3.14.0t/bin/python3.14t
-Python 3.14.0 free-threading build (main, Oct  8 2025, 09:33:34) [GCC 13.3.0] on linux
-Type "help", "copyright", "credits" or "license" for more information.
-```
 </v-clicks>
 
 
@@ -318,36 +310,33 @@ $ strings ~/.env314t/bin/python | grep -i 'free-threading build'
 class: history
 ---
 
-# The GIL Is Now a Zombie
+# The GIL Is a Zombie
 
 <v-clicks depth=2>
 
 - The GIL is disabled, not removed
-- Reenabling the GIL
+- The GIL can be reenabled at startup
     - `PYTHON_GIL=1` environment variable
     - `-X gil=1` flag at launch
+- The GIL can be reeanbled during runtime
+- Discovering the GIL status: `sys._is_gil_enalbled()`
 
 </v-clicks>
-
-
 
 
 ---
 class: history
 ---
 
-# Running
+# Raising the Dead
 
-<v-clicks depth=2>
 
-- A `python3.14t` build has `python`
-- The GIL is disabled, not removed
-- Reenabling the GIL
-    - `PYTHON_GIL=1` environment variable
-    - `-X gil=1` flag at launch
-
-</v-clicks>
-
+```bash{1-2|3-4}
+$ python3 -c "import sys;print(sys._is_gil_enabled())"
+False
+$ python3 -X gil=1 -c "import sys;print(sys._is_gil_enabled())"
+True
+```
 
 
 
@@ -360,8 +349,8 @@ class: history
 <v-clicks depth=2>
 
 - Binary wheels must be specially built
-- Importing non-compatible wheels will re-enable the GIL
-- Native Python package / wheel are always compatible
+- Importing non-compatible wheels re-enables the GIL
+- Native Python packages are always compatible
 
 </v-clicks>
 
@@ -377,7 +366,7 @@ class: history
 
 - `Py_GIL_DISABLED`: constant for discovery of runtime type
 - `PyUnstable_Module_SetGIL()`: register no-GIL support
-```c
+```c {1-5,9|6-8}
 PyMODINIT_FUNC
 PyInit_mymodule(void)
 {
@@ -393,6 +382,9 @@ PyInit_mymodule(void)
 </v-clicks>
 
 
+<!-- #ifdef is a preprocessor directive -->
+
+
 ---
 class: history
 ---
@@ -403,12 +395,9 @@ class: history
 
 - Declaring `Py_MOD_GIL_NOT_USED` does not render thread safety
 - Easy to accidentally rely on the GIL
-    - Shared mutable module state
+- Shared mutable module state
 
 </v-clicks>
-
-
-
 
 
 
@@ -468,9 +457,9 @@ class: mitigation
 class: mitigation
 ---
 
-# `ThreadPoolExecutor` Ordered, Arg Lists
+# `ThreadPoolExecutor.map()`
 
-```python
+```python{1|3-4|6-7|9-}
 from concurrent.futures import ThreadPoolExecutor
 
 def add(a, b):
@@ -483,14 +472,16 @@ with ThreadPoolExecutor() as executor:
     results = list(executor.map(add, left, right))
 ```
 
+<!-- Units of work driven by arg count -->
+
 
 ---
 class: mitigation
 ---
 
-# `ThreadPoolExecutor` Ordered, Arg Tuples
+# `ThreadPoolExecutor.submit()`
 
-```python
+```python{1-2|4|6-}
 def add(a, b):
     return a + b
 
@@ -499,27 +490,6 @@ pairs = [(1, 10), (2, 20), (3, 30)]
 with ThreadPoolExecutor() as executor:
     futures = [executor.submit(add, *args) for args in pairs]
     results = [future.result() for future in futures]
-```
-
----
-class: mitigation
----
-
-# `ThreadPoolExecutor` As Completed
-
-```python
-def add(a, b):
-    return a + b
-
-pairs = [(1, 10), (2, 20), (3, 30)]
-results = [None] * len(pairs)
-
-with ThreadPoolExecutor() as ex:
-    futures = {
-        ex.submit(add, *args): i for i, args in enumerate(pairs)
-    }
-    for future in as_completed(futures):
-        results[futures[future]] = future.result()
 ```
 
 
@@ -533,12 +503,14 @@ class: mitigation
 <v-clicks depth=2>
 
 - Many NumPy processes are already no-GIL
-- A high bar
-- NumPy arrays can be made immutable
-    - `flags.writeable`
+- Few NumPy processes use threads
+- A high performance bar
+- NumPy arrays can be made immutable: `flags.writeable`
 - Immutability makes data races impossible
 
 </v-clicks>
+
+<!-- only linear algeabra libraries use threads -->
 
 
 ---
@@ -549,10 +521,21 @@ class: mitigation
 
 <v-clicks depth=2>
 
-- `ThreadPoolExecutor.map()` of 1D array rows
-- `numpy.from_iter()` to build 1D array
-- Processing rows into a 1D array
-- Processing rows into other PyObjects
+- Iterating a 2D array yields 1D rows
+```python
+>>> array = np.arange(20).reshape(4,5)
+>>> list(array)
+[array([0, 1, 2, 3]), array([4, 5, 6, 7]), array([ 8,  9, 10, 11])]
+```
+- Call `ThreadPoolExecutor.map()` on rows
+```python
+>>> ThreadPoolExecutor.map(proc, array)
+```
+- Use `numpy.from_iter()` to build 1D result array
+```python
+>>> np.fromiter((a.sum() for a in array), dtype=int, count=array.shape[0])
+array([ 6, 22, 38])
+```
 
 </v-clicks>
 
@@ -568,8 +551,9 @@ class: mitigation
 - More threads can do more work
 - More threads incur overhead
 - `max_workers` parameter
-    - Default: `max_workers=min(32, (os.process_cpu_count() or 1) + 4)`
-    - Test and measure
+- Default: `max_workers=min(32, (os.process_cpu_count() or 1) + 4)`
+- For CPU-bound processes, fewer can be better
+- Test and measure
 
 </v-clicks>
 
@@ -595,6 +579,63 @@ class: text-center
 
 <div style="position:absolute;right:-5%;bottom:-5%;font-size:450px !important;line-height:1 !important;opacity:0.03;pointer-events:none;filter:brightness(0) invert(1);">🛡️</div>
 
+
+
+---
+class: mitigation
+---
+
+# Embarrassingly Parallel Operations
+
+<v-clicks depth=2>
+
+- Concurrency is not always easy: locks, shared data
+- Easy concurrency is embarrassing: no dependencies
+- Processing isolated data partitions
+    - Applying the same function to numerous files or images
+    - Processing records from a DB query
+    - Processing rows or columns from an array
+
+</v-clicks>
+
+
+
+
+---
+class: mitigation
+---
+
+# Code: Processing Harness
+
+```python{1|3-4|6-}
+def proc(row): ...
+
+# single threaded
+np.fromiter((proc(row) for row in array), dtype=float, count=array.shape[0])
+
+# 8 threads
+with ThreadPoolExecutor(max_workers=8) as ex:
+    np.fromiter(ex.map(proc, array), dtype=float, count=array.shape[0])
+```
+
+
+
+---
+class: mitigation
+---
+
+# Code: Processing Types
+
+```python{1-2|4-5|7-}
+def proc(row): # Many PyObjects
+    return  max(Counter(row.tolist()).values())
+
+def proc(row): # Few PyObjects
+    return (row[row % 2 == 0] ** 2).sum()
+
+def proc(row): # One PyObject
+    return row.sum()
+```
 
 
 ---
@@ -695,7 +736,7 @@ class: history
 
 </v-clicks>
 
-
+<!-- These have already been seen and discussed -->
 
 ---
 class: history
@@ -705,7 +746,9 @@ class: history
 
 <v-clicks depth=2>
 
-- Thread indeterminacy with in-place mutation
+- Thread execution is indeterminate
+- In-place mutation leads to indeterminate results
+- Requires locks
 - Defend with immutable data structures
     - `tuple`
     - `np.ndarray.flags.writeable`
@@ -900,7 +943,6 @@ with ConditionalThreadPoolExecutor() as ex:
 - My agents often implement serial first
 - `python`:
     - Obvious I/O bound processes
-    - When identified, easily refactored
 - `rust`:
     - Trivial CPU-bound loop to parallel iterator with `rayon`
 - Agents can rapidly do performance tests of alternate designs and fixtures
