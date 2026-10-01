@@ -66,7 +66,8 @@ class: history
 
 <v-clicks depth=2>
 
-- Python threads are no longer bound by the GIL
+- Remove the GIL, free the threads
+- “No GIL” is “free-threaded”
 - Python 3.13 (experimental), Python 3.14 (supported)
 
 </v-clicks>
@@ -84,16 +85,16 @@ class: history
 >>> import numpy as np
 
 >>> array = np.arange(100_000_000).reshape(10_000, 10_000)
->>> def f(row):
-    return (row[row % 2 == 0]**2).sum()
+>>> def f(row): return (row[row % 2 == 0]**2).sum()
+...
 
 >>> %timeit np.fromiter((f(row) for row in array), dtype=float,
 count=array.shape[0])
-313 ms ± 4.92 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+360 ms ± 3.34 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
 >>> %timeit with ThreadPoolExecutor() as ex:
 np.fromiter(ex.map(f, array), dtype=float, count=array.shape[0])
-383 ms ± 12.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+373 ms ± 24.4 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 ```
 
 ---
@@ -112,11 +113,11 @@ class: history
 
 >>> %timeit np.fromiter((f(row) for row in array), dtype=float,
 count=array.shape[0])
-306 ms ± 2.25 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+360 ms ± 1.7 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
->>> %timeit with ThreadPoolExecutor() as ex:
+>>> %timeit with ThreadPoolExecutor(max_workers=8) as ex:
 np.fromiter(ex.map(f, array), dtype=float, count=array.shape[0])
-71 ms ± 682 μs per loop (mean ± std. dev. of 7 runs, 10 loops each)
+83.7 ms ± 819 μs per loop (mean ± std. dev. of 7 runs, 10 loops each)
 ```
 
 ---
@@ -146,14 +147,13 @@ class: history
 
 <v-clicks depth=2>
 
-- “No GIL” is “free-threaded”
 - Over a decade of work to remove the GIL
 - Thread-safe reference counting
     - Biased: `ob_ref_local`, `ob_ref_shared`
     - Per-thread reference counting
     - Deferred
     - Immortal objects
-- Memory safety throughout the standard library
+- Memory safe throughout the standard library
 - A new memory allocator (mimalloc)
     - Per-thread allocation
 
@@ -181,7 +181,7 @@ class: text-center quote
 # Free-threading may be the greatest enhancement to Python performance
 
 
-<!-- More impactful than JIT and many other recent enhancements  -->
+<!-- More impactful than specializing interpreter and JIT  -->
 
 
 ---
@@ -195,6 +195,7 @@ class: history
 - Lots of CPU-bound processing
 - Lots of embarrassingly parallel row-wise calculations
 - Multiprocessing overhead overwhelmed concurrency benefits
+- Free-threading unlocks material performance gains
 
 </v-clicks>
 
@@ -224,8 +225,8 @@ class: history
     - DataFrames
     - Records from a DB
 - NumPy early to offer free-threaded wheels
-- NumPy is already fast and (sometimes) GIL-free
 - Few NumPy routines use threads
+- NumPy is already fast and (sometimes) GIL-free
 - Faster NumPy processing is extraordinary
 
 </v-clicks>
@@ -268,7 +269,6 @@ class: history
 
 - Two different binaries: `python3.14` and `python3.14t`
 - Distributors
-    - Python.org
     - `uv python install 3.14t`
     - MacOS: homebrew: `brew install python-freethreading`
     - Debian / Ubuntu: `apt`:
@@ -277,6 +277,7 @@ class: history
         sudo apt update
         sudo apt install python3.14-nogil
         ```
+    - Windows: nuget: `nuget install python-freethreaded`
 - Compiling from source: `--disable-gil`
 
 </v-clicks>
@@ -290,7 +291,7 @@ class: history
 
 <v-clicks depth=2>
 
-- The binary may not label threading with `t`
+- The binary may not have a `t`
 - Can be any of `python`, `python3`, `python3.14`, and `python3.14t`
 - `python3` might be GIL or no-GIL
 
@@ -305,7 +306,7 @@ class: history
 
 <v-clicks depth=2>
 
-- Neither binary name nor `--version` tell you
+- Neither binary name nor `--version`
 ```bash
 $ python --version
 Python 3.14.0
@@ -365,8 +366,8 @@ class: history
 
 <v-clicks depth=2>
 
-- Binary wheels must be specially built
-- Extensions not declaring support re-enable the GIL on import
+- Binary wheels must opt-in to compatibility
+- Incompatible packages re-enable the GIL on import
 - Pure-Python packages are always compatible
 
 </v-clicks>
@@ -489,8 +490,8 @@ class: mitigation
 
 <v-clicks depth=2>
 
-- `Thread` objects (Python 1.5.2)
-- Concurrent futures `ThreadPoolExecutor` (Python 3.2)
+- `Thread` objects (Python 1.5.1, 1998)
+- Concurrent futures `ThreadPoolExecutor` (Python 3.2, 2011)
 
 </v-clicks>
 
@@ -505,8 +506,9 @@ class: mitigation
 
 - Context manager for multi-threaded processing
 - Configurable worker counts
-- Executor `map()` processes one function with many args
-- Executor `submit()` creates futures
+- Two executors
+    - `map()` processes one function with many args
+    - `submit()` creates futures that block on `result()`
 
 </v-clicks>
 
@@ -570,7 +572,7 @@ class: mitigation
 ```python
 >>> ex.map(proc, array)
 ```
-- Use `np.fromiter()` to build 1D result array
+- Use `np.fromiter()` to build 1D result
 ```python
 >>> np.fromiter((a.sum() for a in array), dtype=int, count=array.shape[0])
 array([ 6, 22, 38])
@@ -589,8 +591,8 @@ class: mitigation
 
 - More threads can do more work
 - More threads incur overhead
-- `ThreadPoolExecutor()` `max_workers` parameter
-- Default: `max_workers=min(32, (os.process_cpu_count() or 1) + 4)`
+- `max_workers` configures maximum `ThreadPoolExecutor()` thread count
+- I/O bound default: `min(32, (os.process_cpu_count() or 1) + 4)`
 - For CPU-bound processes, fewer can be better
 - Test and measure
 
@@ -797,8 +799,8 @@ class: mitigation
 <v-clicks depth=2>
 
 - The greater the row cost, the more threads benefit
-- Creating `PyObject`s is a significant row cost
-- Avoid too many threads with `max_workers`
+- Creating `PyObject` a significant row cost
+- Set `max_workers`
 
 </v-clicks>
 
@@ -835,7 +837,7 @@ class: history
 
 - Thread overhead greater than unit of work
     - Very small units of work
-    - Many threads
+    - Too many threads
 
 </v-clicks>
 
@@ -861,7 +863,7 @@ class: history
 class: history
 ---
 
-# Data Races: In-Place Summation (Lost Update)
+# Data Races: In-Place Summation
 
 ```python{1-4|6-7|9}
 data = [0]
@@ -875,13 +877,11 @@ with ThreadPoolExecutor(max_workers=8) as executor:
 print(f"Expected: {800_000:,}, Found: {data[0]:,}")
 ```
 
-
-
 ---
 class: history
 ---
 
-# Data Races: In-Place Summation (Lost Update)
+# Data Races: In-Place Summation
 
 ```bash{1-2|4-5|7-8}
 $ ~/.env314/bin/python ex.py
@@ -894,6 +894,11 @@ $ ~/.env314t/bin/python ex.py
 Expected: 800,000, Found: 207,052
 ```
 
+<!-- reading, computing, and writing are not not atomic;
+multiple threads will read the same source value and calculate the same result
+four-way lost-update collision
+worst case would 100,000: maximally synchronized collision
+ -->
 
 
 <!-- VI -->
@@ -924,7 +929,7 @@ class: history
 
 <v-clicks depth=2>
 
-- The GIL can be reenabled at any time!
+- The GIL can be reenabled
 - Your code might run under `python3.14` instead of `python3.14t`
 - Threading with the GIL can degrade performance
 
@@ -940,6 +945,7 @@ class: history
 <v-clicks depth=2>
 
 - Check the GIL state before threading
+- Two approaches
     - `sys._is_gil_enabled()`
     - `conditional-futures`: `ConditionalThreadPoolExecutor`
 
