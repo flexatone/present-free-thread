@@ -34,17 +34,17 @@ class FTTest:
 
 
 
-from collections import Counter
-def proc(row):
-    return  max(Counter(row.tolist()).values())
+# from collections import Counter
+# def proc(row):
+#     return  max(Counter(row.tolist()).values())
 
-PROC_DESCRIPTION = 'max(Counter(row.tolist()).values())'
+# PROC_DESCRIPTION = 'max(Counter(row.tolist()).values())'
 
 
-# def proc(row): # ess: even squared sum
-#     return (row[row % 2 == 0] ** 2).sum()
+def proc(row): # ess: even squared sum
+    return (row[row % 2 == 0] ** 2).sum()
 
-# PROC_DESCRIPTION = '(row[row % 2 == 0]**2).sum()'
+PROC_DESCRIPTION = '(row[row % 2 == 0]**2).sum()'
 
 
 

@@ -67,3 +67,9 @@
   margin: 0 auto;
   border-radius: 4px;
 }
+
+/* Dark warm grey behind plot slides, to soften contrast with the plot images */
+.slidev-layout:has(img.plot) {
+  background-color: #3b3732 !important;
+  background-image: none !important;
+}

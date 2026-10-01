@@ -654,7 +654,7 @@ class: mitigation
 - Row-processing performance
     - Tall: more smaller units of work
     - Wide: fewer larger units of work
-- 100M (1e8) and 1M (1e6) sizes
+- 100M (1e8) and 1M (1e6) elements
 
 
 </v-clicks>
@@ -733,8 +733,9 @@ class: history
 
 <v-clicks depth=2>
 
-- Very small units of work
-- Too many threads
+- Thread overhead greater than unit of work
+    - Very small units of work
+    - Many threads
 
 </v-clicks>
 
@@ -750,7 +751,7 @@ class: history
 
 - Thread execution is indeterminate between threads
 - In-place mutation leads to indeterminate results
-- Requires locks
+- Managed with locks at a cost to performance
 - Defend with immutable data structures
     - `tuple`
     - `np.ndarray.flags.writeable`
@@ -794,51 +795,6 @@ Expected: 800,000, Found: 209,515
 
 $ ~/.env314t/bin/python ex.py
 Expected: 800,000, Found: 207,052
-```
-
-
-
----
-class: history
----
-
-# Data Races: In-Place Convolution
-
-```python{1-4|6-8|10-11|13-}
-rng = np.random.default_rng(0)
-signal, kernel = rng.random(1_000_000), rng.random(10)
-chunk = 100
-out = np.zeros(len(signal) + len(kernel) - 1)
-
-def process(start):
-    result = np.convolve(signal[start:start + chunk], kernel)
-    out[start:start + len(result)] += result
-
-with ThreadPoolExecutor(max_workers=8) as executor:
-    executor.map(process, range(0, len(signal), chunk))
-
-print(f"Mismatched elements:
-{(~np.isclose(out, np.convolve(signal, kernel))).sum():,} of
-{len(out):,}")
-```
-
-
-
----
-class: history
----
-
-# Data Races: In-Place Convolution
-
-```bash{1-2|4-5|7-8}
-$ ~/.env314/bin/python ex.py
-Mismatched elements: 0 of 1,000,009
-
-$ ~/.env314t/bin/python ex.py
-Mismatched elements: 1,970 of 1,000,009
-
-$ ~/.env314t/bin/python ex.py
-Mismatched elements: 1,989 of 1,000,009
 ```
 
 
