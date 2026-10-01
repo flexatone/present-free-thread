@@ -79,13 +79,13 @@ class: history
 
 # GIL-Bound Threading: Python 3.14
 
-```python {1-6|8-10|12-}
+```python {1-2|4|5-6|8-10|12-}
 >>> from concurrent.futures import ThreadPoolExecutor
 >>> import numpy as np
 
 >>> array = np.arange(100_000_000).reshape(10_000, 10_000)
->>> def f(row): return (row[row % 2 == 0]**2).sum()
-...
+>>> def f(row):
+    return (row[row % 2 == 0]**2).sum()
 
 >>> %timeit np.fromiter((f(row) for row in array), dtype=float,
 count=array.shape[0])
@@ -127,12 +127,15 @@ class: history
 
 <v-clicks depth=2>
 
-- A lock on bytecode execution: `pthread_mutex_lock()`
+- A lock on bytecode execution
 - Only one thread can execute bytecode at a time
 - Protects interpreter internals & reference counts
+- Sometimes defends against data-races
 
 </v-clicks>
 
+
+<!-- pthread_mutex_lock() -->
 
 
 ---
@@ -152,9 +155,15 @@ class: history
     - Immortal objects
 - Memory safety throughout the standard library
 - A new memory allocator (mimalloc)
+    - Per-thread allocation
 
 </v-clicks>
 
+
+<!-- ob_ref_local is local to the object’s owning thread,
+if the current thread is the owner, INCREF/DECREF can update ob_ref_local cheaply, non-atomically;
+if another thread touches the object, it updates ob_ref_shared using atomic operations.
+-->
 
 
 ---
@@ -212,11 +221,18 @@ class: history
 <v-clicks depth=2>
 
 - Processing NumPy 2D arrays generalizes to other domains
+    - DataFrames
+    - Records from a DB
 - NumPy early to offer free-threaded wheels
 - NumPy is already fast and (sometimes) GIL-free
+- Few NumPy routines use threads
 - Faster NumPy processing is extraordinary
 
 </v-clicks>
+
+
+<!-- only linear algeabra libraries use threads -->
+
 
 
 
@@ -274,8 +290,9 @@ class: history
 
 <v-clicks depth=2>
 
-- The binary may not label threading
+- The binary may not label threading with `t`
 - Can be any of `python`, `python3`, `python3.14`, and `python3.14t`
+- `python3` might be GIL or no-GIL
 
 </v-clicks>
 
@@ -360,9 +377,28 @@ class: history
 class: history
 ---
 
+# Raising the Dead
+
+```python{1-3|4-8|9-}
+>>> import sys
+>>> sys._is_gil_enabled()
+False
+>>> import psycopg2
+<frozen importlib._bootstrap>:491: RuntimeWarning: The global interpreter lock
+(GIL) has been enabled to load module 'psycopg2._psycopg', which has not
+declared that it can run safely without the GIL. To override this behavior and
+keep the GIL disabled (at your own risk), run with PYTHON_GIL=0 or -Xgil=0.
+>>> sys._is_gil_enabled()
+True
+```
+
+
+---
+class: history
+---
+
 # Free-Threading C-Extensions: Single-Phase Init
 
-<v-clicks depth=2>
 
 - `Py_GIL_DISABLED`: compile-time macro
 - `PyUnstable_Module_SetGIL()`: register no-GIL support
@@ -379,8 +415,6 @@ PyInit_mymodule(void)
 }
 ```
 
-</v-clicks>
-
 <!-- #ifdef is a preprocessor directive -->
 
 
@@ -390,7 +424,6 @@ class: history
 
 # Free-Threading C-Extensions: Multi-Phase Init
 
-<v-clicks depth=2>
 
 - `Py_mod_gil` module slot: register no-GIL support
 - No `#ifdef` on `Py_GIL_DISABLED` needed
@@ -407,7 +440,6 @@ PyMODINIT_FUNC
 PyInit_mymodule(void) { return PyModuleDef_Init(&moduledef); }
 ```
 
-</v-clicks>
 
 
 ---
@@ -418,9 +450,10 @@ class: history
 
 <v-clicks depth=2>
 
-- Declaring `Py_MOD_GIL_NOT_USED` does not make it thread-safe
+- Declaring `Py_MOD_GIL_NOT_USED` does not ensure thread-safety
 - Easy to accidentally rely on the GIL
 - Shared mutable module state
+- Quantsight-Labs: https://py-free-threading.github.io
 
 </v-clicks>
 
@@ -456,8 +489,8 @@ class: mitigation
 
 <v-clicks depth=2>
 
-- `Thread` objects
-- Concurrent futures `ThreadPoolExecutor`
+- `Thread` objects (Python 1.5.2)
+- Concurrent futures `ThreadPoolExecutor` (Python 3.2)
 
 </v-clicks>
 
@@ -523,25 +556,6 @@ with ThreadPoolExecutor() as executor:
 class: mitigation
 ---
 
-# Multi-Threading NumPy Operations
-
-<v-clicks depth=2>
-
-- Many NumPy routines are already no-GIL
-- Few NumPy routines use threads
-- A high performance bar
-- NumPy arrays can be made immutable: `flags.writeable`
-- Immutability prevents accidental in-place mutation
-
-</v-clicks>
-
-<!-- only linear algeabra libraries use threads -->
-
-
----
-class: mitigation
----
-
 # Using `ThreadPoolExecutor` with 2D arrays
 
 <v-clicks depth=2>
@@ -552,7 +566,7 @@ class: mitigation
 >>> list(array)
 [array([0, 1, 2, 3]), array([4, 5, 6, 7]), array([ 8,  9, 10, 11])]
 ```
-- Call `ThreadPoolExecutor.map()` on array
+- Call `ThreadPoolExecutor.map()` with `proc` and `array`
 ```python
 >>> ex.map(proc, array)
 ```
@@ -735,15 +749,6 @@ class: mitigation
 <img class="plot" src="/images/ft-np-perf-ess-1e8.png" />
 
 
----
-class: mitigation
----
-
-# Per-row even square sum 1e6
-
-<img class="plot" src="/images/ft-np-perf-ess-1e6.png" />
-
-
 
 
 ---
@@ -793,6 +798,7 @@ class: mitigation
 
 - The greater the row cost, the more threads benefit
 - Creating `PyObject`s is a significant row cost
+- Avoid too many threads with `max_workers`
 
 </v-clicks>
 
@@ -847,10 +853,6 @@ class: history
 - In-place mutation leads to indeterminate results
 - Managed with locks
 - The GIL protected against many data races
-- Defend with immutable data structures
-    - `tuple`
-    - `np.ndarray.flags.writeable`
-    - `frozendict` (3.15!)
 
 </v-clicks>
 
@@ -923,8 +925,8 @@ class: history
 <v-clicks depth=2>
 
 - The GIL can be reenabled at any time!
-- Your code might run under python3.14 instead of 3.14t
-- Threads with the GIL can lead to serious performance degradation
+- Your code might run under `python3.14` instead of `python3.14t`
+- Threading with the GIL can degrade performance
 
 </v-clicks>
 
@@ -974,9 +976,10 @@ class: history
 
 <v-clicks depth=2>
 
+- One implementation for both cases
+- If GIL is active uses single-thread, else `ThreadPoolExecutor`
+- A fully compatible `Executor` subclass
 - `pip install conditional-futures`
-- An `Executor` subclass
-- If GIL is active, falls back on single-threaded processing
 
 </v-clicks>
 
@@ -1009,10 +1012,10 @@ with ConditionalThreadPoolExecutor() as ex:
 <v-clicks depth=2>
 
 - My agents often implement serial first
-- `python`:
+- `python`
     - I/O bound processes
     - Well-known case of threading benefit even with GIL
-- `rust`:
+- `rust`
     - CPU-bound loop
     - Trivial enhancement with `rayon` parallel iterators
 - Review and ask
@@ -1030,13 +1033,16 @@ with ConditionalThreadPoolExecutor() as ex:
 <v-clicks depth=2>
 
 - Multi-threading arrays: a pathological case
-- Free-threading is no longer experimental
-- Growing package support
-    - PyPI classifier: "Programming Language :: Python :: Free Threading"
-    - Tracking top 360: https://hugovk.github.io/free-threaded-wheels/
 - Adoption can be difficult
+- Growing package support
+    - Tracking top 360: https://hugovk.dev/free-threaded-wheels
+    - 217 of 360
+- Free-threading is the future
 
 </v-clicks>
+
+
+<!-- Hugo van Kemenade -->
 
 
 

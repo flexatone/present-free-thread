@@ -93,3 +93,40 @@ class: mitigation
 
 
 
+
+
+---
+class: mitigation
+---
+
+# Multi-Threading NumPy Operations
+
+<v-clicks depth=2>
+
+- Many NumPy routines are already no-GIL
+- Few NumPy routines use threads
+- A high performance bar
+- NumPy arrays can be made immutable: `flags.writeable`
+- Immutability prevents accidental in-place mutation
+
+</v-clicks>
+
+
+
+
+---
+class: mitigation
+---
+
+# Per-row even square sum 1e6
+
+<img class="plot" src="/images/ft-np-perf-ess-1e6.png" />
+
+
+
+
+
+- Defend with immutable data structures
+    - `tuple`
+    - `np.ndarray.flags.writeable`
+    - `frozendict` (3.15!)
