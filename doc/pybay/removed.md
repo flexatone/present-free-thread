@@ -69,3 +69,27 @@ $ ~/.env314t/bin/python ex.py
 Mismatched elements: 1,989 of 1,000,009
 ```
 
+
+
+
+
+---
+class: mitigation
+---
+
+# Embarrassingly Parallel Operations
+
+<v-clicks depth=2>
+
+- Concurrency is not always easy: locks, shared data
+- Easy concurrency is embarrassing: no dependencies
+- Processing isolated data partitions
+    - Applying the same function to numerous files or images
+    - Processing records from a DB query
+    - Processing rows or columns from an array
+
+</v-clicks>
+
+
+
+

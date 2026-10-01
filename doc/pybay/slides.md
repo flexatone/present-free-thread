@@ -69,7 +69,6 @@ class: history
 - Python threads are no longer bound by the GIL
 - Python 3.13 (experimental), Python 3.14 (supported)
 
-
 </v-clicks>
 
 
@@ -128,11 +127,9 @@ class: history
 
 <v-clicks depth=2>
 
-- A lock on bytecode execution: `pthread_mutex_lock()` (POSIX)
+- A lock on bytecode execution: `pthread_mutex_lock()`
 - Only one thread can execute bytecode at a time
 - Protects interpreter internals & reference counts
-- Over a decade of work to remove the GIL
-- “No GIL” is “free-threaded”
 
 </v-clicks>
 
@@ -146,12 +143,14 @@ class: history
 
 <v-clicks depth=2>
 
+- “No GIL” is “free-threaded”
+- Over a decade of work to remove the GIL
 - Thread-safe reference counting
     - Biased: `ob_ref_local`, `ob_ref_shared`
     - Per-thread reference counting
     - Deferred
     - Immortal objects
-- Built-in locking in containers
+- Memory safety throughout the standard library
 - A new memory allocator (mimalloc)
 
 </v-clicks>
@@ -275,8 +274,8 @@ class: history
 
 <v-clicks depth=2>
 
-- A free-threading build has `python3.14` and `python3.14t` binaries
-- Virtual environments have `python`, `python3`, `python3.14`, and `python3.14t`
+- The binary may not label threading
+- Can be any of `python`, `python3`, `python3.14`, and `python3.14t`
 
 </v-clicks>
 
@@ -294,19 +293,17 @@ class: history
 $ python --version
 Python 3.14.0
 ```
-- Two approaches to discovery:
+- See in REPL or with `-VV`
 ```bash
 $ python -VV
 Python 3.14.0 free-threading build (main, Oct  8 2025, 09:33:34) [GCC 13.3.0]
-
-$ strings ~/.env314t/bin/python | grep -i 'free-threading build'
-%.80s free-threading build (%.80s) %.80s
 ```
-
+- Check `Py_GIL_DISABLED` via `sysconfig`
+```bash
+$ python3 -c "import sysconfig;print(sysconfig.get_config_var('Py_GIL_DISABLED'))"
+1
+```
 </v-clicks>
-
-<!--
-sysconfig.get_config_var('Py_GIL_DISABLED'). -->
 
 
 ---
@@ -322,7 +319,7 @@ class: history
     - `PYTHON_GIL=1` environment variable
     - `-X gil=1` flag at launch
 - The GIL can be reenabled during runtime
-- Discovering the GIL status: `sys._is_gil_enabled()`
+- Runtime GIL status: `sys._is_gil_enabled()`
 
 </v-clicks>
 
@@ -368,7 +365,7 @@ class: history
 <v-clicks depth=2>
 
 - `Py_GIL_DISABLED`: compile-time macro
-- `PyUnstable_Module_SetGIL()`: register no-GIL support (single-phase init)
+- `PyUnstable_Module_SetGIL()`: register no-GIL support
 ```c {1-5,9-10|6-8}
 PyMODINIT_FUNC
 PyInit_mymodule(void)
@@ -395,8 +392,8 @@ class: history
 
 <v-clicks depth=2>
 
-- `Py_mod_gil` slot: register no-GIL support (multi-phase init)
-- No `#ifdef` needed: ignored by GIL builds
+- `Py_mod_gil` module slot: register no-GIL support
+- No `#ifdef` on `Py_GIL_DISABLED` needed
 ```c {9-10|6-8|1-5|3}
 static PyModuleDef_Slot slots[] = {
     {Py_mod_exec, mymodule_exec},
@@ -609,24 +606,6 @@ class: text-center
 
 
 
----
-class: mitigation
----
-
-# Embarrassingly Parallel Operations
-
-<v-clicks depth=2>
-
-- Concurrency is not always easy: locks, shared data
-- Easy concurrency is embarrassing: no dependencies
-- Processing isolated data partitions
-    - Applying the same function to numerous files or images
-    - Processing records from a DB query
-    - Processing rows or columns from an array
-
-</v-clicks>
-
-
 
 
 ---
@@ -675,7 +654,7 @@ class: mitigation
 <v-clicks depth=2>
 
 - Performance evaluation must consider shape
-- Shape categories
+- Three shapes of the same elements
     - Tall: many smaller rows
     - Square: row size and count equal
     - Wide: fewer larger rows
@@ -866,7 +845,8 @@ class: history
 
 - Thread execution is indeterminate between threads
 - In-place mutation leads to indeterminate results
-- Managed with locks at a cost to performance
+- Managed with locks
+- The GIL protected against many data races
 - Defend with immutable data structures
     - `tuple`
     - `np.ndarray.flags.writeable`
@@ -1020,6 +1000,8 @@ with ConditionalThreadPoolExecutor() as ex:
 ```
 
 
+
+
 ---
 
 # Talk to Your Agents about Concurrency
@@ -1028,10 +1010,13 @@ with ConditionalThreadPoolExecutor() as ex:
 
 - My agents often implement serial first
 - `python`:
-    - Obvious I/O bound processes
+    - I/O bound processes
+    - Well-known case of threading benefit even with GIL
 - `rust`:
-    - Trivial CPU-bound loop to parallel iterator with `rayon`
-- Agents can rapidly do performance tests of alternate designs and fixtures
+    - CPU-bound loop
+    - Trivial enhancement with `rayon` parallel iterators
+- Review and ask
+- Agents can rapidly benchmark alternatives
 
 </v-clicks>
 
