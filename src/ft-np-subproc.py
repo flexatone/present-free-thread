@@ -41,17 +41,16 @@ class FTTest:
 # PROC_DESCRIPTION = 'max(Counter(row.tolist()).values())'
 
 
-def proc(row): # ess: even squared sum
-    return (row[row % 2 == 0] ** 2).sum()
+# def proc(row): # ess: even squared sum
+#     return (row[row % 2 == 0] ** 2).sum()
 
-PROC_DESCRIPTION = '(row[row % 2 == 0]**2).sum()'
+# PROC_DESCRIPTION = '(row[row % 2 == 0]**2).sum()'
 
 
+def proc(row):
+    return row.sum()
 
-# def proc(row):
-#     return row.sum()
-
-# PROC_DESCRIPTION = 'sum()'
+PROC_DESCRIPTION = 'sum()'
 
 
 # def proc(row):
