@@ -240,7 +240,7 @@ class: text-center
 
 # Running Free-Threaded Python
 
-<div style="position:absolute;right:0%;bottom:-10%;font-size:450px !important;line-height:1 !important;opacity:0.03;pointer-events:none;filter:brightness(0.1) invert(1);">📦</div>
+<div style="position:absolute;right:0%;bottom:-5%;font-size:450px !important;line-height:1 !important;opacity:0.04;pointer-events:none;filter:brightness(0) invert(1);">🐍</div>
 
 
 
@@ -419,7 +419,7 @@ class: text-center
 
 # Using `ThreadPoolExecutor`
 
-<div style="position:absolute;right:-5%;bottom:-5%;font-size:450px !important;line-height:1 !important;opacity:0.03;pointer-events:none;filter:brightness(0) invert(1);">🛡️</div>
+<div style="position:absolute;right:-0%;bottom:-5%;font-size:450px !important;line-height:1 !important;opacity:0.04;pointer-events:none;filter:brightness(0) invert(1);">🐝</div>
 
 
 
@@ -527,7 +527,7 @@ class: mitigation
 >>> list(array)
 [array([0, 1, 2, 3]), array([4, 5, 6, 7]), array([ 8,  9, 10, 11])]
 ```
-- Call `ThreadPoolExecutor.map()` on rows
+- Call `ThreadPoolExecutor.map()` on array
 ```python
 >>> ThreadPoolExecutor.map(proc, array)
 ```
@@ -550,7 +550,7 @@ class: mitigation
 
 - More threads can do more work
 - More threads incur overhead
-- `max_workers` parameter
+- `ThreadPoolExecutor()` `max_workers` parameter
 - Default: `max_workers=min(32, (os.process_cpu_count() or 1) + 4)`
 - For CPU-bound processes, fewer can be better
 - Test and measure
@@ -577,7 +577,7 @@ class: text-center
 
 # Performance Panels
 
-<div style="position:absolute;right:-5%;bottom:-5%;font-size:450px !important;line-height:1 !important;opacity:0.03;pointer-events:none;filter:brightness(0) invert(1);">🛡️</div>
+<div style="position:absolute;right:1%;bottom:-5%;font-size:450px !important;line-height:1 !important;opacity:0.04;pointer-events:none;filter:brightness(0) invert(1);">🚀</div>
 
 
 
@@ -654,6 +654,8 @@ class: mitigation
 - Row-processing performance
     - Tall: more smaller units of work
     - Wide: fewer larger units of work
+- 100M (1e8) and 1M (1e6) sizes
+
 
 </v-clicks>
 
@@ -719,7 +721,7 @@ class: text-center
 
 # When Multi-Threading Goes Wrong
 
-<div style="position:absolute;right:0%;bottom:-10%;font-size:450px !important;line-height:1 !important;opacity:0.03;pointer-events:none;filter:brightness(0.1) invert(1);">📦</div>
+<div style="position:absolute;right:-6%;bottom:-10%;font-size:450px !important;line-height:1 !important;opacity:0.04;pointer-events:none;filter:brightness(0) invert(1);">🧵</div>
 
 
 
@@ -746,7 +748,7 @@ class: history
 
 <v-clicks depth=2>
 
-- Thread execution is indeterminate
+- Thread execution is indeterminate between threads
 - In-place mutation leads to indeterminate results
 - Requires locks
 - Defend with immutable data structures
@@ -761,9 +763,9 @@ class: history
 class: history
 ---
 
-# Data Races: In-Place Summation
+# Data Races: In-Place Summation (Lost Update)
 
-```python
+```python{1-4|6-7|9}
 data = [0]
 def increment(_):
     for _ in range(100_000):
@@ -771,6 +773,7 @@ def increment(_):
 
 with ThreadPoolExecutor(max_workers=8) as executor:
     executor.map(increment, range(8))
+
 print(f"Expected: {800_000:,}, Found: {data[0]:,}")
 ```
 
@@ -780,9 +783,9 @@ print(f"Expected: {800_000:,}, Found: {data[0]:,}")
 class: history
 ---
 
-# Data Races: In-Place Summation
+# Data Races: In-Place Summation (Lost Update)
 
-```bash
+```bash{1-2|4-5|7-8}
 $ ~/.env314/bin/python ex.py
 Expected: 800,000, Found: 800,000
 
@@ -801,7 +804,7 @@ class: history
 
 # Data Races: In-Place Convolution
 
-```python
+```python{1-4|6-8|10-11|13-}
 rng = np.random.default_rng(0)
 signal, kernel = rng.random(1_000_000), rng.random(10)
 chunk = 100
@@ -814,7 +817,9 @@ def process(start):
 with ThreadPoolExecutor(max_workers=8) as executor:
     executor.map(process, range(0, len(signal), chunk))
 
-print(f"Mismatched elements: {(~np.isclose(out, np.convolve(signal, kernel))).sum():,} of {len(out):,}")
+print(f"Mismatched elements:
+{(~np.isclose(out, np.convolve(signal, kernel))).sum():,} of
+{len(out):,}")
 ```
 
 
@@ -825,7 +830,7 @@ class: history
 
 # Data Races: In-Place Convolution
 
-```bash
+```bash{1-2|4-5|7-8}
 $ ~/.env314/bin/python ex.py
 Mismatched elements: 0 of 1,000,009
 
@@ -855,7 +860,7 @@ class: text-center
 
 # Bridging GIL and Free-Threaded Environments
 
-<div style="position:absolute;right:0%;bottom:-10%;font-size:450px !important;line-height:1 !important;opacity:0.03;pointer-events:none;filter:brightness(0.1) invert(1);">📦</div>
+<div style="position:absolute;right:0%;bottom:-10%;font-size:450px !important;line-height:1 !important;opacity:0.04;pointer-events:none;filter:brightness(0) invert(1);">🤝</div>
 
 
 ---
@@ -866,7 +871,7 @@ class: history
 
 <v-clicks depth=2>
 
-- The GIL can be enabled at anytime!
+- The GIL can be reenabled at anytime!
 - Your code might run under python3.14 instead of 3.14t
 - Threads with the GIL can lead to serious performance degradation
 
@@ -895,7 +900,7 @@ class: history
 
 # `sys._is_gil_enabled()`
 
-```python
+```python{1-2|4-6|4-}
 array = np.arange(100_000_000).reshape(10_000, 10_000)
 def f(row): (row[row % 2 == 0]**2).sum()
 
@@ -903,8 +908,26 @@ if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled():
     with ThreadPoolExecutor() as ex:
         x = np.fromiter(ex.map(f, array), dtype=float, count=array.shape[0])
 else:
-    x = np.fromiter((f(row) for row in array), dtype=float, count=array.shape[0])
+    x = np.fromiter((f(row) for row in array),
+        dtype=float,
+        count=array.shape[0])
 ```
+
+
+
+---
+class: history
+---
+
+# `ConditionalThreadPoolExecutor`
+
+<v-clicks depth=2>
+
+- `pip install conditional_futures`
+- An `Executor` subclass
+- If GIL is active, falls-back on single threaded processing
+
+</v-clicks>
 
 
 
@@ -915,12 +938,7 @@ class: history
 
 # `ConditionalThreadPoolExecutor`
 
-- `pip install conditional_futures`
-- An `Executor` subclass
-- If GIL is active, falls-back on single threaded processing
-
-```python
-
+```python{1|3-4|5-}
 from conditional_futures import ConditionalThreadPoolExecutor
 
 array = np.arange(100_000_000).reshape(10_000, 10_000)
@@ -929,9 +947,6 @@ def f(row): (row[row % 2 == 0]**2).sum()
 with ConditionalThreadPoolExecutor() as ex:
     x = np.fromiter(ex.map(f, array), dtype=float, count=array.shape[0])
 ```
-
-
-
 
 
 ---
@@ -946,7 +961,6 @@ with ConditionalThreadPoolExecutor() as ex:
 - `rust`:
     - Trivial CPU-bound loop to parallel iterator with `rayon`
 - Agents can rapidly do performance tests of alternate designs and fixtures
-
 
 </v-clicks>
 
