@@ -85,7 +85,7 @@ class: history
 >>> import numpy as np
 
 >>> array = np.arange(100_000_000).reshape(10_000, 10_000)
->>> def f(row): (row[row % 2 == 0]**2).sum()
+>>> def f(row): return (row[row % 2 == 0]**2).sum()
 ...
 
 >>> %timeit np.fromiter((f(row) for row in array), dtype=float,
@@ -108,7 +108,7 @@ class: history
 >>> import numpy as np
 
 >>> array = np.arange(100_000_000).reshape(10_000, 10_000)
->>> def f(row): (row[row % 2 == 0]**2).sum()
+>>> def f(row): return (row[row % 2 == 0]**2).sum()
 ...
 
 >>> %timeit np.fromiter((f(row) for row in array), dtype=float,
@@ -130,7 +130,7 @@ class: history
 
 - A lock on bytecode execution: `pthread_mutex_lock()` (POSIX)
 - Only one thread can execute bytecode at a time
-- Ensures no data races
+- Protects interpreter internals & reference counts
 - Over a decade of work to remove the GIL
 - “No GIL” is “free-threaded”
 
@@ -148,10 +148,9 @@ class: history
 
 - Thread-safe reference counting
     - Biased: `ob_ref_local`, `ob_ref_shared`
-    - Per-thread thread-based storage
+    - Per-thread reference counting
     - Deferred
     - Immortal objects
-    - Stop-the-world GC
 - Built-in locking in containers
 - A new memory allocator (mimalloc)
 
@@ -255,6 +254,7 @@ class: history
 - Two different binaries: `python3.14` and `python3.14t`
 - Distributors
     - Python.org
+    - `uv python install 3.14t`
     - MacOS: homebrew: `brew install python-freethreading`
     - Debian / Ubuntu: `apt`:
         ```bash
@@ -276,7 +276,7 @@ class: history
 <v-clicks depth=2>
 
 - A free-threading build has `python3.14` and `python3.14t` binaries
-- Virtual environments have only `python3.14` and `python`
+- Virtual environments have `python`, `python3`, `python3.14`, and `python3.14t`
 
 </v-clicks>
 
@@ -289,7 +289,7 @@ class: history
 
 <v-clicks depth=2>
 
-- Neither binary name nor version tells you it is free-threaded
+- Neither binary name nor `--version` tell you
 ```bash
 $ python --version
 Python 3.14.0
@@ -305,6 +305,9 @@ $ strings ~/.env314t/bin/python | grep -i 'free-threading build'
 
 </v-clicks>
 
+<!--
+sysconfig.get_config_var('Py_GIL_DISABLED'). -->
+
 
 ---
 class: history
@@ -318,8 +321,8 @@ class: history
 - The GIL can be reenabled at startup
     - `PYTHON_GIL=1` environment variable
     - `-X gil=1` flag at launch
-- The GIL can be reeanbled during runtime
-- Discovering the GIL status: `sys._is_gil_enalbled()`
+- The GIL can be reenabled during runtime
+- Discovering the GIL status: `sys._is_gil_enabled()`
 
 </v-clicks>
 
@@ -349,8 +352,8 @@ class: history
 <v-clicks depth=2>
 
 - Binary wheels must be specially built
-- Importing non-compatible wheels re-enables the GIL
-- Native Python packages are always compatible
+- Extensions not declaring support re-enable the GIL on import
+- Pure-Python packages are always compatible
 
 </v-clicks>
 
@@ -360,13 +363,13 @@ class: history
 class: history
 ---
 
-# Building Free-Threading Compatible C-Extensions
+# Free-Threading C-Extensions: Single-Phase Init
 
 <v-clicks depth=2>
 
-- `Py_GIL_DISABLED`: constant for discovery of runtime type
-- `PyUnstable_Module_SetGIL()`: register no-GIL support
-```c {1-5,9|6-8}
+- `Py_GIL_DISABLED`: compile-time macro
+- `PyUnstable_Module_SetGIL()`: register no-GIL support (single-phase init)
+```c {1-5,9-10|6-8}
 PyMODINIT_FUNC
 PyInit_mymodule(void)
 {
@@ -381,8 +384,33 @@ PyInit_mymodule(void)
 
 </v-clicks>
 
-
 <!-- #ifdef is a preprocessor directive -->
+
+
+---
+class: history
+---
+
+# Free-Threading C-Extensions: Multi-Phase Init
+
+<v-clicks depth=2>
+
+- `Py_mod_gil` slot: register no-GIL support (multi-phase init)
+- No `#ifdef` needed: ignored by GIL builds
+```c {9-10|6-8|1-5|3}
+static PyModuleDef_Slot slots[] = {
+    {Py_mod_exec, mymodule_exec},
+    {Py_mod_gil, Py_MOD_GIL_NOT_USED},
+    {0, NULL}
+};
+static PyModuleDef moduledef = {
+    PyModuleDef_HEAD_INIT, .m_name = "mymodule", .m_slots = slots,
+};
+PyMODINIT_FUNC
+PyInit_mymodule(void) { return PyModuleDef_Init(&moduledef); }
+```
+
+</v-clicks>
 
 
 ---
@@ -393,7 +421,7 @@ class: history
 
 <v-clicks depth=2>
 
-- Declaring `Py_MOD_GIL_NOT_USED` does not render thread safety
+- Declaring `Py_MOD_GIL_NOT_USED` does not make it thread-safe
 - Easy to accidentally rely on the GIL
 - Shared mutable module state
 
@@ -427,7 +455,7 @@ class: text-center
 class: mitigation
 ---
 
-# Runing Threads in Python
+# Running Threads in Python
 
 <v-clicks depth=2>
 
@@ -498,15 +526,15 @@ with ThreadPoolExecutor() as executor:
 class: mitigation
 ---
 
-# Multi-Threading NumPy Processes
+# Multi-Threading NumPy Operations
 
 <v-clicks depth=2>
 
-- Many NumPy processes are already no-GIL
-- Few NumPy processes use threads
+- Many NumPy routines are already no-GIL
+- Few NumPy routines use threads
 - A high performance bar
 - NumPy arrays can be made immutable: `flags.writeable`
-- Immutability makes data races impossible
+- Immutability prevents accidental in-place mutation
 
 </v-clicks>
 
@@ -523,15 +551,15 @@ class: mitigation
 
 - Iterating a 2D array yields 1D rows
 ```python
->>> array = np.arange(20).reshape(4,5)
+>>> array = np.arange(12).reshape(3,4)
 >>> list(array)
 [array([0, 1, 2, 3]), array([4, 5, 6, 7]), array([ 8,  9, 10, 11])]
 ```
 - Call `ThreadPoolExecutor.map()` on array
 ```python
->>> ThreadPoolExecutor.map(proc, array)
+>>> ex.map(proc, array)
 ```
-- Use `numpy.from_iter()` to build 1D result array
+- Use `np.fromiter()` to build 1D result array
 ```python
 >>> np.fromiter((a.sum() for a in array), dtype=int, count=array.shape[0])
 array([ 6, 22, 38])
@@ -627,14 +655,14 @@ class: mitigation
 # Code: Processing Types
 
 ```python{1-2|4-5|7-}
-def proc(row): # Many PyObjects
-    return  max(Counter(row.tolist()).values())
+def proc(row): # One PyObject
+    return row.sum()
 
 def proc(row): # Few PyObjects
     return (row[row % 2 == 0] ** 2).sum()
 
-def proc(row): # One PyObject
-    return row.sum()
+def proc(row): # Many PyObjects
+    return max(Counter(row.tolist()).values())
 ```
 
 
@@ -666,9 +694,37 @@ class: mitigation
 class: mitigation
 ---
 
-# Per-row `max(Counter())` 1e8
+# Per-row `sum()`
 
-<img class="plot" src="/images/ft-np-perf-counter-1e8.png" />
+```python{1-2}
+def proc(row): # One PyObject
+    return row.sum()
+
+def proc(row): # Few PyObjects
+    return (row[row % 2 == 0] ** 2).sum()
+
+def proc(row): # Many PyObjects
+    return max(Counter(row.tolist()).values())
+```
+
+
+---
+class: mitigation
+---
+
+# Per-row `sum()` 1e8
+
+<img class="plot" src="/images/ft-np-perf-sum-1e8.png" />
+
+
+---
+class: mitigation
+---
+
+# Per-row `sum()` 1e6
+
+<img class="plot" src="/images/ft-np-perf-sum-1e6.png" />
+
 
 
 
@@ -676,10 +732,18 @@ class: mitigation
 class: mitigation
 ---
 
-# Per-row `max(Counter())` 1e6
+# Per-row even squared sum
 
-<img class="plot" src="/images/ft-np-perf-counter-1e6.png" />
+```python{4-5}
+def proc(row): # One PyObject
+    return row.sum()
 
+def proc(row): # Few PyObjects
+    return (row[row % 2 == 0] ** 2).sum()
+
+def proc(row): # Many PyObjects
+    return max(Counter(row.tolist()).values())
+```
 
 
 
@@ -692,15 +756,66 @@ class: mitigation
 <img class="plot" src="/images/ft-np-perf-ess-1e8.png" />
 
 
+---
+class: mitigation
+---
+
+# Per-row even square sum 1e6
+
+<img class="plot" src="/images/ft-np-perf-ess-1e6.png" />
+
+
+
 
 ---
 class: mitigation
 ---
 
-# Per-row `sum()` 1e8
+# Per-row `max(Counter())`
 
-<img class="plot" src="/images/ft-np-perf-sum-1e8.png" />
+```python{7-}
+def proc(row): # One PyObject
+    return row.sum()
 
+def proc(row): # Few PyObjects
+    return (row[row % 2 == 0] ** 2).sum()
+
+def proc(row): # Many PyObjects
+    return max(Counter(row.tolist()).values())
+```
+
+
+---
+class: mitigation
+---
+
+# Per-row `max(Counter())` 1e8
+
+<img class="plot" src="/images/ft-np-perf-counter-1e8.png" />
+
+
+---
+class: mitigation
+---
+
+# Per-row `max(Counter())` 1e6
+
+<img class="plot" src="/images/ft-np-perf-counter-1e6.png" />
+
+
+
+---
+class: mitigation
+---
+
+# Generalizations
+
+<v-clicks depth=2>
+
+- The greater the row cost, the more threads benefit
+- Creating `PyObject`s is a significant row cost
+
+</v-clicks>
 
 
 
@@ -827,7 +942,7 @@ class: history
 
 <v-clicks depth=2>
 
-- The GIL can be reenabled at anytime!
+- The GIL can be reenabled at any time!
 - Your code might run under python3.14 instead of 3.14t
 - Threads with the GIL can lead to serious performance degradation
 
@@ -843,8 +958,8 @@ class: history
 <v-clicks depth=2>
 
 - Check the GIL state before threading
-- `sys._is_gil_enabled()`
-- `conditional-futures`: `ConditionalThreadPoolExecutor`
+    - `sys._is_gil_enabled()`
+    - `conditional-futures`: `ConditionalThreadPoolExecutor`
 
 </v-clicks>
 
@@ -858,7 +973,7 @@ class: history
 
 ```python{1-2|4-6|4-}
 array = np.arange(100_000_000).reshape(10_000, 10_000)
-def f(row): (row[row % 2 == 0]**2).sum()
+def f(row): return (row[row % 2 == 0]**2).sum()
 
 if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled():
     with ThreadPoolExecutor() as ex:
@@ -879,9 +994,9 @@ class: history
 
 <v-clicks depth=2>
 
-- `pip install conditional_futures`
+- `pip install conditional-futures`
 - An `Executor` subclass
-- If GIL is active, falls-back on single threaded processing
+- If GIL is active, falls back on single-threaded processing
 
 </v-clicks>
 
@@ -894,11 +1009,11 @@ class: history
 
 # `ConditionalThreadPoolExecutor`
 
-```python{1|3-4|5-}
+```python{1|3-4|6-}
 from conditional_futures import ConditionalThreadPoolExecutor
 
 array = np.arange(100_000_000).reshape(10_000, 10_000)
-def f(row): (row[row % 2 == 0]**2).sum()
+def f(row): return (row[row % 2 == 0]**2).sum()
 
 with ConditionalThreadPoolExecutor() as ex:
     x = np.fromiter(ex.map(f, array), dtype=float, count=array.shape[0])
@@ -930,7 +1045,7 @@ with ConditionalThreadPoolExecutor() as ex:
 <v-clicks depth=2>
 
 - Multi-threading arrays: a pathological case
-- Free-threading is no-longer experimental
+- Free-threading is no longer experimental
 - Growing package support
     - PyPI classifier: "Programming Language :: Python :: Free Threading"
     - Tracking top 360: https://hugovk.github.io/free-threaded-wheels/
