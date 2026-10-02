@@ -74,6 +74,8 @@ class: history
 </v-clicks>
 
 
+<!-- application binary interface -->
+
 
 ---
 class: history
@@ -116,10 +118,13 @@ class: history
 count=array.shape[0])
 360 ms ± 1.7 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
->>> %timeit with ThreadPoolExecutor(max_workers=8) as ex:
+>>> %timeit with ThreadPoolExecutor() as ex:
 np.fromiter(ex.map(f, array), dtype=float, count=array.shape[0])
 83.7 ms ± 819 μs per loop (mean ± std. dev. of 7 runs, 10 loops each)
 ```
+
+<!-- completed in 20% the time -->
+
 
 ---
 class: history
@@ -154,7 +159,7 @@ class: history
     - Per-thread reference counting
     - Deferred
     - Immortal objects
-- Memory safe throughout the standard library
+- Memory safety throughout the standard library
 - A new memory allocator (mimalloc)
     - Per-thread allocation
 
@@ -228,7 +233,7 @@ class: history
     - Files in directory
 - NumPy early to offer free-threaded wheels
 - Few NumPy routines use threads
-- NumPy is already fast and (sometimes) GIL-free
+- NumPy is already fast (SIMD) and (often) GIL-free
 - Faster NumPy processing is extraordinary
 
 </v-clicks>
@@ -313,7 +318,7 @@ class: history
 $ python --version
 Python 3.14.0
 ```
-- See in REPL or with `-VV`
+- See "free-threading build" in REPL or with `-VV`
 ```bash
 $ python -VV
 Python 3.14.0 free-threading build (main, Oct  8 2025, 09:33:34) [GCC 13.3.0]
@@ -339,7 +344,7 @@ class: history
     - `PYTHON_GIL=1` environment variable
     - `-X gil=1` flag at launch
 - The GIL can be reenabled during runtime
-- Runtime GIL status: `sys._is_gil_enabled()`
+- Runtime GIL status (Python 3.13): `sys._is_gil_enabled()`
 
 </v-clicks>
 
@@ -518,8 +523,9 @@ class: mitigation
 
 <v-clicks depth=2>
 
-- `Thread` objects (Python 1.5.1, 1998)
-- Concurrent futures `ThreadPoolExecutor` (Python 3.2, 2011)
+- Two ways
+    - `Thread` objects (Python 1.5.1, 1998)
+    - Concurrent futures `ThreadPoolExecutor` (Python 3.2, 2011)
 
 </v-clicks>
 
@@ -591,7 +597,7 @@ class: mitigation
 <v-clicks depth=2>
 
 - Iterating a 2D array yields 1D rows
-```python
+```python{1|2-}
 >>> array = np.arange(12).reshape(3,4)
 >>> list(array)
 [array([0, 1, 2, 3]), array([4, 5, 6, 7]), array([ 8,  9, 10, 11])]
@@ -621,7 +627,7 @@ class: mitigation
 - More threads incur overhead
 - `max_workers` configures maximum `ThreadPoolExecutor()` thread count
 - I/O bound default: `min(32, (os.process_cpu_count() or 1) + 4)`
-- For CPU-bound processes, fewer often better
+- For CPU-bound processes, fewer is often better
 - Test and measure
 
 </v-clicks>
@@ -688,6 +694,7 @@ def proc(row): # Many PyObjects
     return max(Counter(row.tolist()).values())
 ```
 
+<!-- counter.values() returns the counts -->
 
 ---
 class: mitigation
@@ -702,16 +709,22 @@ class: mitigation
     - Tall: many smaller rows
     - Square: row size and count equal
     - Wide: fewer larger rows
-- Row-processing performance
-    - Tall: more smaller units of work
-    - Wide: fewer larger units of work
 - 100M (1e8) and 1M (1e6) elements
 
 
 </v-clicks>
 
 
+---
+class: mitigation
+---
 
+# Performance Test Panels
+
+- Each fixture tested with 1, 2, 4, 8, and 16 threads
+- GIL (`python3.14`): Tall, Square, Wide
+- no-GIL (`python3.14t`): Tall, Square Wide
+- Plot runtime: less is better
 
 ---
 class: mitigation
@@ -828,7 +841,7 @@ class: mitigation
 
 - The greater the row cost, the more threads benefit
 - Creating `PyObject` a significant row cost
-- Set `max_workers`
+- Tune `max_workers`
 
 </v-clicks>
 
@@ -1091,8 +1104,7 @@ class: text-center
 - Multi-threading arrays: a pathological case
 - Adoption can be difficult
 - Growing package support
-    - Tracking top 360: https://hugovk.dev/free-threaded-wheels
-    - 217 of 360
+    - 217 of top 360: https://hugovk.dev/free-threaded-wheels
 - Free-threading is the future
 
 </v-clicks>
