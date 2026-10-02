@@ -69,6 +69,7 @@ class: history
 - Remove the GIL, free the threads
 - “No GIL” is “free-threaded”
 - Python 3.13 (experimental), Python 3.14 (supported)
+- Python 3.15 adds stable free-threaded ABI (`abi3t`)
 
 </v-clicks>
 
@@ -181,7 +182,7 @@ class: text-center quote
 # Free-threading may be the greatest enhancement to Python performance
 
 
-<!-- More impactful than specializing interpreter and JIT  -->
+<!-- More impactful than adaptive specializing interpreter and JIT  -->
 
 
 ---
@@ -224,6 +225,7 @@ class: history
 - Processing NumPy 2D arrays generalizes to other domains
     - DataFrames
     - Records from a DB
+    - Files in directory
 - NumPy early to offer free-threaded wheels
 - Few NumPy routines use threads
 - NumPy is already fast and (sometimes) GIL-free
@@ -306,7 +308,7 @@ class: history
 
 <v-clicks depth=2>
 
-- Neither binary name nor `--version`
+- Neither binary name nor `--version` distinguishes
 ```bash
 $ python --version
 Python 3.14.0
@@ -440,6 +442,32 @@ static PyModuleDef moduledef = {
 PyMODINIT_FUNC
 PyInit_mymodule(void) { return PyModuleDef_Init(&moduledef); }
 ```
+
+
+---
+class: history
+---
+
+# Free-Threading C-Extensions: Stable ABI (`abi3t`)
+
+
+- `PyModExport_*()`: new entry point returning slots (PEP 793, 3.15)
+- One binary for GIL and free-threaded builds (PEP 803)
+```c {10-11|3-9|1-2,4|7}
+#define Py_TARGET_ABI3T 0x30f0000 // target abi3t for 3.15+
+PyABIInfo_VAR(abi_info);
+static PySlot slots[] = {
+    PySlot_STATIC_DATA(Py_mod_abi, &abi_info),
+    PySlot_STATIC_DATA(Py_mod_name, "mymodule"),
+    PySlot_FUNC(Py_mod_exec, mymodule_exec),
+    PySlot_DATA(Py_mod_gil, Py_MOD_GIL_NOT_USED),
+    PySlot_END
+};
+PyMODEXPORT_FUNC
+PyModExport_mymodule(void) { return slots; }
+```
+
+<!-- Py_TARGET_ABI3T is defined before #include <Python.h>; wheel tag abi3.abi3t -->
 
 
 
@@ -589,11 +617,11 @@ class: mitigation
 
 <v-clicks depth=2>
 
-- More threads can do more work
+- More threads do more work
 - More threads incur overhead
 - `max_workers` configures maximum `ThreadPoolExecutor()` thread count
 - I/O bound default: `min(32, (os.process_cpu_count() or 1) + 4)`
-- For CPU-bound processes, fewer can be better
+- For CPU-bound processes, fewer often better
 - Test and measure
 
 </v-clicks>
@@ -1011,6 +1039,28 @@ with ConditionalThreadPoolExecutor() as ex:
 
 
 
+
+---
+layout: center
+class: text-center
+---
+
+<style scoped>
+.slidev-layout {
+  background-color: #1a1a2e;
+  background-image: radial-gradient(rgba(255,255,255,0.05) 2px, transparent 2px);
+  background-size: 48px 48px;
+}
+</style>
+
+# Conclusions
+
+<div style="position:absolute;right:0%;bottom:-10%;font-size:450px !important;line-height:1 !important;opacity:0.04;pointer-events:none;filter:brightness(0) invert(1);"></div>
+
+
+
+
+
 ---
 
 # Talk to Your Agents about Concurrency
@@ -1018,11 +1068,11 @@ with ConditionalThreadPoolExecutor() as ex:
 <v-clicks depth=2>
 
 - My agents often implement serial first
-- `python`
+- Python
     - I/O bound processes
-    - Well-known case of threading benefit even with GIL
-- `rust`
-    - CPU-bound loop
+    - Well-known cases of threading even with GIL
+- Rust
+    - CPU-bound loop processes
     - Trivial enhancement with `rayon` parallel iterators
 - Review and ask
 - Agents can rapidly benchmark alternatives
