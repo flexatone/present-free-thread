@@ -138,6 +138,7 @@ class: history
 - Only one thread can execute bytecode at a time
 - Protects interpreter internals & reference counts
 - Sometimes defends against data-races
+- Throttles CPU-bound thread concurrency
 
 </v-clicks>
 
@@ -275,7 +276,7 @@ class: history
 <v-clicks depth=2>
 
 - Two different binaries: `python3.14` and `python3.14t`
-- Distributors
+- Installing
     - `uv python install 3.14t`
     - MacOS: homebrew: `brew install python-freethreading`
     - Debian / Ubuntu: `apt`:
@@ -401,78 +402,24 @@ True
 ```
 
 
----
-class: history
----
-
-# Free-Threading C-Extensions: Single-Phase Init
-
-
-- `Py_GIL_DISABLED`: compile-time macro
-- `PyUnstable_Module_SetGIL()`: register no-GIL support
-```c {1-5,9-10|6-8}
-PyMODINIT_FUNC
-PyInit_mymodule(void)
-{
-    PyObject *m = PyModule_Create(&moduledef);
-    if (m == NULL) { return NULL; }
-#ifdef Py_GIL_DISABLED
-    PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);
-#endif
-    return m;
-}
-```
-
-<!-- #ifdef is a preprocessor directive -->
-
 
 ---
 class: history
 ---
 
-# Free-Threading C-Extensions: Multi-Phase Init
+# Free-Threading Compatible C-Extensions
 
+<v-clicks depth=2>
 
-- `Py_mod_gil` module slot: register no-GIL support
-- No `#ifdef` on `Py_GIL_DISABLED` needed
-```c {9-10|6-8|1-5|3}
-static PyModuleDef_Slot slots[] = {
-    {Py_mod_exec, mymodule_exec},
-    {Py_mod_gil, Py_MOD_GIL_NOT_USED},
-    {0, NULL}
-};
-static PyModuleDef moduledef = {
-    PyModuleDef_HEAD_INIT, .m_name = "mymodule", .m_slots = slots,
-};
-PyMODINIT_FUNC
-PyInit_mymodule(void) { return PyModuleDef_Init(&moduledef); }
-```
+- Three ways
+    - Single-Phase Init
+        - ```PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);```
+    - Multi-Phase Init
+        - ```{Py_mod_gil, Py_MOD_GIL_NOT_USED}```
+    - Using `abi3t` (Python 3.15)
+        - ```PySlot_DATA(Py_mod_gil, Py_MOD_GIL_NOT_USED)```
 
-
----
-class: history
----
-
-# Free-Threading C-Extensions: Stable ABI (`abi3t`)
-
-
-- `PyModExport_*()`: new entry point returning slots (PEP 793, 3.15)
-- One binary for GIL and free-threaded builds (PEP 803)
-```c {10-11|3-9|1-2,4|7}
-#define Py_TARGET_ABI3T 0x30f0000 // target abi3t for 3.15+
-PyABIInfo_VAR(abi_info);
-static PySlot slots[] = {
-    PySlot_STATIC_DATA(Py_mod_abi, &abi_info),
-    PySlot_STATIC_DATA(Py_mod_name, "mymodule"),
-    PySlot_FUNC(Py_mod_exec, mymodule_exec),
-    PySlot_DATA(Py_mod_gil, Py_MOD_GIL_NOT_USED),
-    PySlot_END
-};
-PyMODEXPORT_FUNC
-PyModExport_mymodule(void) { return slots; }
-```
-
-<!-- Py_TARGET_ABI3T is defined before #include <Python.h>; wheel tag abi3.abi3t -->
+</v-clicks>
 
 
 
@@ -709,7 +656,7 @@ class: mitigation
     - Tall: many smaller rows
     - Square: row size and count equal
     - Wide: fewer larger rows
-- 100M (1e8) and 1M (1e6) elements
+- 100M (1e8) elements
 
 
 </v-clicks>
@@ -724,7 +671,7 @@ class: mitigation
 - Each fixture tested with 1, 2, 4, 8, and 16 threads
 - GIL (`python3.14`): Tall, Square, Wide
 - no-GIL (`python3.14t`): Tall, Square Wide
-- Plot runtime: less is better
+- Plot runtime: less is faster
 
 ---
 class: mitigation
@@ -732,15 +679,9 @@ class: mitigation
 
 # Per-row `sum()`
 
-```python{1-2}
+```python
 def proc(row): # One PyObject
     return row.sum()
-
-def proc(row): # Few PyObjects
-    return (row[row % 2 == 0] ** 2).sum()
-
-def proc(row): # Many PyObjects
-    return max(Counter(row.tolist()).values())
 ```
 
 
@@ -753,15 +694,6 @@ class: mitigation
 <img class="plot" src="/images/ft-np-perf-sum-1e8.png" />
 
 
----
-class: mitigation
----
-
-# Per-row `sum()` 1e6
-
-<img class="plot" src="/images/ft-np-perf-sum-1e6.png" />
-
-
 
 
 ---
@@ -770,15 +702,9 @@ class: mitigation
 
 # Per-row even squared sum
 
-```python{4-5}
-def proc(row): # One PyObject
-    return row.sum()
-
+```python
 def proc(row): # Few PyObjects
     return (row[row % 2 == 0] ** 2).sum()
-
-def proc(row): # Many PyObjects
-    return max(Counter(row.tolist()).values())
 ```
 
 
@@ -800,13 +726,7 @@ class: mitigation
 
 # Per-row `max(Counter())`
 
-```python{7-}
-def proc(row): # One PyObject
-    return row.sum()
-
-def proc(row): # Few PyObjects
-    return (row[row % 2 == 0] ** 2).sum()
-
+```python
 def proc(row): # Many PyObjects
     return max(Counter(row.tolist()).values())
 ```
@@ -820,14 +740,6 @@ class: mitigation
 
 <img class="plot" src="/images/ft-np-perf-counter-1e8.png" />
 
-
----
-class: mitigation
----
-
-# Per-row `max(Counter())` 1e6
-
-<img class="plot" src="/images/ft-np-perf-counter-1e6.png" />
 
 
 
@@ -878,7 +790,7 @@ class: history
 
 - Thread overhead greater than unit of work
     - Very small units of work
-    - Too many threads
+    - Too many workers
 
 </v-clicks>
 

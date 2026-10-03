@@ -130,3 +130,104 @@ class: mitigation
     - `tuple`
     - `np.ndarray.flags.writeable`
     - `frozendict` (3.15!)
+
+
+
+
+
+---
+class: mitigation
+---
+
+# Per-row `sum()` 1e6
+
+<img class="plot" src="/images/ft-np-perf-sum-1e6.png" />
+
+
+
+
+---
+class: mitigation
+---
+
+# Per-row `max(Counter())` 1e6
+
+<img class="plot" src="/images/ft-np-perf-counter-1e6.png" />
+
+
+
+
+
+---
+class: history
+---
+
+# Free-Threading C-Extensions: Single-Phase Init
+
+
+- `Py_GIL_DISABLED`: compile-time macro
+- `PyUnstable_Module_SetGIL()`: register no-GIL support
+```c {1-5,9-10|6-8}
+PyMODINIT_FUNC
+PyInit_mymodule(void)
+{
+    PyObject *m = PyModule_Create(&moduledef);
+    if (m == NULL) { return NULL; }
+#ifdef Py_GIL_DISABLED
+    PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);
+#endif
+    return m;
+}
+```
+
+<!-- #ifdef is a preprocessor directive -->
+
+
+---
+class: history
+---
+
+# Free-Threading C-Extensions: Multi-Phase Init
+
+
+- `Py_mod_gil` module slot: register no-GIL support
+- No `#ifdef` on `Py_GIL_DISABLED` needed
+```c {9-10|6-8|1-5|3}
+static PyModuleDef_Slot slots[] = {
+    {Py_mod_exec, mymodule_exec},
+    {Py_mod_gil, Py_MOD_GIL_NOT_USED},
+    {0, NULL}
+};
+static PyModuleDef moduledef = {
+    PyModuleDef_HEAD_INIT, .m_name = "mymodule", .m_slots = slots,
+};
+PyMODINIT_FUNC
+PyInit_mymodule(void) { return PyModuleDef_Init(&moduledef); }
+```
+
+
+---
+class: history
+---
+
+# Free-Threading C-Extensions: Stable ABI (`abi3t`)
+
+
+- `PyModExport_*()`: new entry point returning slots (PEP 793, 3.15)
+- One binary for GIL and free-threaded builds (PEP 803)
+```c {10-11|3-9|1-2,4|7}
+#define Py_TARGET_ABI3T 0x30f0000 // target abi3t for 3.15+
+PyABIInfo_VAR(abi_info);
+static PySlot slots[] = {
+    PySlot_STATIC_DATA(Py_mod_abi, &abi_info),
+    PySlot_STATIC_DATA(Py_mod_name, "mymodule"),
+    PySlot_FUNC(Py_mod_exec, mymodule_exec),
+    PySlot_DATA(Py_mod_gil, Py_MOD_GIL_NOT_USED),
+    PySlot_END
+};
+PyMODEXPORT_FUNC
+PyModExport_mymodule(void) { return slots; }
+```
+
+<!-- Py_TARGET_ABI3T is defined before #include <Python.h>; wheel tag abi3.abi3t -->
+
