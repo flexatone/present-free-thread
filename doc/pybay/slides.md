@@ -500,7 +500,7 @@ class: mitigation
 
 # `ThreadPoolExecutor.map()`
 
-```python{1|3-4|6-7|9-}
+```python{1|3-4|6-7|9|10}
 from concurrent.futures import ThreadPoolExecutor
 
 def add(a, b):
@@ -522,7 +522,7 @@ class: mitigation
 
 # `ThreadPoolExecutor.submit()`
 
-```python{1-2|4|6-}
+```python{1-2|4|6|7|8}
 def add(a, b):
     return a + b
 
@@ -658,7 +658,6 @@ class: mitigation
     - Wide: fewer larger rows
 - 100M (1e8) elements
 
-
 </v-clicks>
 
 
@@ -668,10 +667,15 @@ class: mitigation
 
 # Performance Test Panels
 
+<v-clicks depth=2>
+
 - Each fixture tested with 1, 2, 4, 8, and 16 threads
 - GIL (`python3.14`): Tall, Square, Wide
 - no-GIL (`python3.14t`): Tall, Square Wide
 - Plot runtime: less is faster
+
+</v-clicks>
+
 
 ---
 class: mitigation
@@ -1014,7 +1018,7 @@ class: text-center
 <v-clicks depth=2>
 
 - Multi-threading arrays: a pathological case
-- Adoption can be difficult
+- Adoption now can be difficult
 - Growing package support
     - 217 of top 360: https://hugovk.dev/free-threaded-wheels
 - Free-threading is the future
