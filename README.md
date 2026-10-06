@@ -1,7 +1,6 @@
 # Getting Started with Free-Threaded Python Using NumPy
 
-Christopher Ariza
-PyBay 2026
+Christopher Ariza, PyBay 2026
 
 **Slides (PDF):** [gswftpun.pdf](gswftpun.pdf)
 
@@ -39,3 +38,4 @@ Each panel plots runtime (lower is faster) for tall, square, and wide arrays, wi
 
 - [`doc/pybay/`](doc/pybay/): the [Slidev](https://sli.dev) source for the slides (`slides.md`)
 - [`src/`](src/): scripts for the benchmarks and data-race examples
+- [`gswftpun.pdf`](gswftpun.pdf): slides
